@@ -1,0 +1,7 @@
+gguf
+numpy<2.0
+
+sentencepiece
+
+gradio
+flask
