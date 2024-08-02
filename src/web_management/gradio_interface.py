@@ -1,34 +1,32 @@
 import gradio as gr
 
-name = "ABC"
+# import gradio_interface_greeting
+from web_management import gradio_interface_conversation, gradio_interface_greeting
+
+amp_manager = None
 
 
-def update_name(new_name):
-    global name
-    name = new_name
-    return f"Name updated to: {name}"
+def run_gradio(port=5005, amp_manager=None):
+    global iface
 
+    gradio_interface_conversation.set_amp_manager(amp_manager)
 
-def get_current_name():
-    global name
-    return name
+    iface.launch(server_name="0.0.0.0", server_port=port, share=False)
 
 
 def shutdown_gradio():
     if hasattr(gr, "close_all"):
         gr.close_all()
-    # Add any additional cleanup if necessary
 
 
-# Create Gradio interface
-iface = gr.Interface(
-    fn=update_name,
-    inputs="text",
-    outputs="text",
-    title="Update Greeting Name",
-    description="Enter a new name to be greeted",
-)
+# Create a tabbed interface
+with gr.Blocks() as iface:
+    gr.Markdown("# Main Interface")
 
+    with gr.Tabs():
+        with gr.Tab("Greeting"):
+            greeting_iface = gradio_interface_greeting.create_interface()
 
-def run_gradio(port=5005):
-    iface.launch(server_name="0.0.0.0", server_port=port, share=False)
+        with gr.Tab("Conversations") as conversation_tab:
+            # This tab will be populated in run_gradio
+            conversation_iface = gradio_interface_conversation.create_interface()

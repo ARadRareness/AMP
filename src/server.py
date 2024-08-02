@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     # Start Gradio in a separate daemon thread
     gradio_thread = threading.Thread(
-        target=run_gradio, args=(ampManager.gradio_port,), daemon=True
+        target=run_gradio, args=(ampManager.gradio_port, ampManager), daemon=True
     )
     gradio_thread.start()
 
