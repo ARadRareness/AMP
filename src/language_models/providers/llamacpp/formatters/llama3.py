@@ -12,7 +12,8 @@ class Llama3Formatter(PromptFormatter):
     def generate_prompt(
         self, messages: Sequence[ModelMessage], use_metadata: bool = False
     ) -> str:
-        prompt: str = "<|begin_of_text|>"
+        prompt: str = ""  # Llama.cpp will inject the token below automatically
+        # prompt = "<|begin_of_text|>"
 
         system_message = ""
 

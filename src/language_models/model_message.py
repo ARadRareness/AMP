@@ -42,3 +42,9 @@ class ModelMessage:
 
     def is_assistant_message(self) -> bool:
         return self.role == Role.ASSISTANT
+
+    def __str__(self) -> str:
+        return f"{self.role.name.lower()}: {self.content}"
+
+    def __repr__(self) -> str:
+        return f"{self.role.name.lower()}: {self.content}"

@@ -5,6 +5,7 @@ from typing import List
 from language_models.api_model import ApiModel
 from language_models.prompt_formatter import PromptFormatter
 from language_models.providers.llamacpp.formatters.llama3 import Llama3Formatter
+from language_models.providers.llamacpp.formatters.mistral import MistralFormatter
 from language_models.providers.llamacpp.llamacpp_model import LlamaCppModel
 
 
@@ -53,7 +54,8 @@ class LlamaCppManager:
                 self.llama_cpp_path,
                 "--n-gpu-layers",
                 str(gpu_layers),
-                # "--ctx-size",
+                "--ctx-size",
+                str(8192 * 4),
                 # str(self.context_window),
                 "--port",
                 str(self.start_port),
@@ -112,6 +114,8 @@ class LlamaCppManager:
     def get_prompt_formatter(self, model_path: str) -> PromptFormatter:
         if "Llama-3" in model_path:
             return Llama3Formatter()
+        elif "Mistral" in model_path:
+            return MistralFormatter()
         else:
             return PromptFormatter()
 

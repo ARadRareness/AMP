@@ -15,7 +15,7 @@ class AmpManager:
         self.conversations: Dict[str, ModelConversation] = {}
 
     def get_available_models(self):
-        return self.llamacpp_manager.get_available_models()
+        return True, self.llamacpp_manager.get_available_models()
 
     def get_default_model(self):
         if not self.llamacpp_manager.get_available_models():
@@ -23,6 +23,15 @@ class AmpManager:
         return self.llamacpp_manager.get_available_models()[0]
 
     def add_system_message(self, data):
+        return self.add_message(data, "system")
+
+    def add_user_message(self, data):
+        return self.add_message(data, "user")
+
+    def add_assistant_message(self, data):
+        return self.add_message(data, "assistant")
+
+    def add_message(self, data, role):
         try:
             conversation_id: str = data.get("conversation_id")
             message: str = data.get("message")
@@ -32,9 +41,16 @@ class AmpManager:
             )
 
             if conversation_id not in self.conversations:
-                self.conversations[conversation_id] = ModelConversation()
+                self.conversations[conversation_id] = ModelConversation(
+                    self.get_default_model()
+                )
 
-            self.conversations[conversation_id].add_system_message(message)
+            if role == "user":
+                self.conversations[conversation_id].add_user_message(message)
+            elif role == "assistant":
+                self.conversations[conversation_id].add_assistant_message(message)
+            elif role == "system":
+                self.conversations[conversation_id].add_system_message(message)
 
             return True, ""
 
@@ -55,7 +71,9 @@ class AmpManager:
             )
 
             if conversation_id not in self.conversations:
-                self.conversations[conversation_id] = ModelConversation()
+                self.conversations[conversation_id] = ModelConversation(
+                    self.get_default_model()
+                )
 
             self.conversations[conversation_id].add_user_message(user_message)
 

@@ -2,9 +2,12 @@ from flask import Flask, Response, jsonify, render_template_string, request
 import threading
 import signal
 from amp_manager import AmpManager
+from web_management.gradio_interface_greeting import (
+    get_current_name,
+)
+
 from web_management.gradio_interface import (
     run_gradio,
-    get_current_name,
     shutdown_gradio,
 )
 
@@ -29,9 +32,22 @@ def add_system_message() -> Response:
     return jsonify({"result": result, "response": response})
 
 
+@app.route("/add_user_message", methods=["POST"])
+def add_user_message() -> Response:
+    result, response = ampManager.add_user_message(request.get_json())
+    return jsonify({"result": result, "response": response})
+
+
+@app.route("/add_assistant_message", methods=["POST"])
+def add_assistant_message() -> Response:
+    result, response = ampManager.add_assistant_message(request.get_json())
+    return jsonify({"result": result, "response": response})
+
+
 @app.route("/get_available_models", methods=["GET"])
 def get_available_models():
-    return ampManager.get_available_models()
+    result, response = ampManager.get_available_models()
+    return jsonify({"result": result, "response": response})
 
 
 @app.route("/get_model_info", methods=["GET"])
