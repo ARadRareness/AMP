@@ -97,6 +97,13 @@ class LlamaCppManager:
             )
         )
 
+    def unload_model(self) -> None:
+        if self.popen:
+            self.popen.terminate()
+            self.popen = None
+        if self.active_models:
+            self.active_models.clear()
+
     def read_prompt_format(self, model_path: str) -> str:
         from gguf import GGUFReader
 

@@ -43,6 +43,6 @@ pip install -r requirements.txt
 Make sure you first download a gguf-model ([Meta-Llama-3-8B-Instruct-GGUF is recommended](https://huggingface.co/bartowski/Meta-Llama-3-8B-Instruct-GGUF)) and put it in the models folder. You will also need to put a llama.cpp-server binary in the bin folder. After that run the server using one of the following commands:
 
 ```bash
-python server.py
-python3 server.py
+python src/server.py
+python3 src/server.py
 ```

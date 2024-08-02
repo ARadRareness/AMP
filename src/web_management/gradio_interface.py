@@ -1,7 +1,11 @@
 import gradio as gr
 
 # import gradio_interface_greeting
-from web_management import gradio_interface_conversation, gradio_interface_greeting
+from web_management import (
+    gradio_interface_conversation,
+    gradio_interface_greeting,
+    gradio_interface_model,
+)
 
 amp_manager = None
 
@@ -10,6 +14,7 @@ def run_gradio(port=5005, amp_manager=None):
     global iface
 
     gradio_interface_conversation.set_amp_manager(amp_manager)
+    gradio_interface_model.set_amp_manager(amp_manager)
 
     iface.launch(server_name="0.0.0.0", server_port=port, share=False)
 
@@ -27,6 +32,9 @@ with gr.Blocks() as iface:
         with gr.Tab("Greeting"):
             greeting_iface = gradio_interface_greeting.create_interface()
 
-        with gr.Tab("Conversations") as conversation_tab:
+        with gr.Tab("Conversations"):
             # This tab will be populated in run_gradio
             conversation_iface = gradio_interface_conversation.create_interface()
+
+        with gr.Tab("Model"):
+            model_iface = gradio_interface_model.create_interface()
