@@ -4,6 +4,7 @@ import traceback
 from typing import Dict, Tuple
 from language_models.model_conversation import ModelConversation
 from language_models.providers.llamacpp.llamacpp_manager import LlamaCppManager
+import threading
 
 
 class AmpManager:
@@ -13,6 +14,8 @@ class AmpManager:
         self.gradio_port = 8080
         self.gradio_html_iframe = self.initialize_gradio_html()
         self.conversations: Dict[str, ModelConversation] = {}
+        self.unload_timer = None
+        self.model_unload_timeout = 600  # 0  # 10 minutes in seconds
 
     def get_available_models(self):
         return True, self.llamacpp_manager.get_available_models()
@@ -60,6 +63,9 @@ class AmpManager:
 
     def generate_response(self, data):
         try:
+            # Cancel any existing timer
+            self.cancel_unload_timer()
+
             conversation_id = data.get("conversation_id")
             user_message = data.get("message")
             max_tokens = data.get("max_tokens")
@@ -92,6 +98,10 @@ class AmpManager:
                 ask_permission_to_run_tools=False,
                 response_prefix=response_prefix,
             )
+
+            # Set a new timer after generating the response
+            self.set_unload_timer()
+
             return True, response
 
         except Exception as e:
@@ -125,7 +135,8 @@ class AmpManager:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Gradio Interface</title>
+        <title>AMP Manager</title>
+        <link rel="icon" type="image/svg+xml" href="/icon.svg">
         <style>
             body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
             iframe { width: 100%; height: 100%; border: none; }
@@ -138,6 +149,16 @@ class AmpManager:
     """.replace(
             "{gradio_port}", str(self.gradio_port)
         )
+
+    def get_icon(self):
+        return """
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <rect x="10" y="10" width="80" height="80" rx="20" ry="20" fill="#4a90e2" />
+      <circle cx="50" cy="50" r="30" fill="#ffffff" />
+      <path d="M50 30 L70 50 L50 70 L30 50 Z" fill="#4a90e2" />
+      <circle cx="50" cy="50" r="5" fill="#ffffff" />
+    </svg>
+    """
 
     def initialize_llamacpp(self):
         binary_path = ""
@@ -184,3 +205,16 @@ class AmpManager:
             raise ValueError("message must be a string.")
 
         return message
+
+    def set_unload_timer(self):
+        self.unload_timer = threading.Timer(
+            self.model_unload_timeout, self.unload_model
+        )
+        self.unload_timer.start()
+
+    def cancel_unload_timer(self):
+        if self.unload_timer:
+            self.unload_timer.cancel()
+
+    def unload_model(self):
+        self.llamacpp_manager.unload_model()

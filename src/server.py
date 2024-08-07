@@ -26,6 +26,11 @@ def manage():
     return render_template_string(ampManager.gradio_html_iframe)
 
 
+@app.route("/icon.svg")
+def serve_icon():
+    return Response(ampManager.get_icon(), mimetype="image/svg+xml")
+
+
 @app.route("/add_system_message", methods=["POST"])
 def add_system_message() -> Response:
     result, response = ampManager.add_system_message(request.get_json())
