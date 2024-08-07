@@ -14,23 +14,15 @@ def get_current_name():
     return name
 
 
-def shutdown_gradio():
-    if hasattr(gr, "close_all"):
-        gr.close_all()
-    # Add any additional cleanup if necessary
-
-
 def create_interface():
-    # Create Gradio interface
+    # Create Gradio interface with a static greeting
     iface = gr.Interface(
-        fn=update_name,
-        inputs="text",
-        outputs="text",
-        title="Update Greeting Name",
-        description="Enter a new name to be greeted",
+        fn=lambda: "Welcome to the AMP manager!",
+        inputs=None,
+        outputs=gr.Label(label=""),  # Use Label component with label=False
+        title="",
+        description="",
+        live=True,  # Ensures the output is always shown
+        allow_flagging="never",  # Disables the flag button
     )
     return iface
-
-
-def run_gradio(port=5005):
-    iface.launch(server_name="0.0.0.0", server_port=port, share=False)

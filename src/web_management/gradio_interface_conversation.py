@@ -1,5 +1,4 @@
 import gradio as gr
-from amp_manager import AmpManager
 
 amp_manager = None
 
@@ -24,32 +23,8 @@ def refresh_conversations():
     return gr.update(choices=[])
 
 
-def initialize_conversations():
-    if amp_manager:
-        return gr.update(choices=list(amp_manager.conversations.keys()))
-    return gr.update(choices=[])
-
-
 def refresh_current_conversation(conversation_id):
     return update_conversation_content(conversation_id)
-
-
-def auto_refresh_conversation(conversation_id):
-    return update_conversation_content(conversation_id)
-
-
-# def run_gradio(port=5005, amp_manager_instance=None):
-#    global amp_manager
-#   amp_manager = amp_manager_instance
-
-# iface.load(fn=initialize_conversations, outputs=[conversation_dropdown])
-# iface.launch(server_name="0.0.0.0", server_port=port, share=False)
-
-
-def shutdown_gradio():
-    if hasattr(gr, "close_all"):
-        gr.close_all()
-    # Add any additional cleanup if necessary
 
 
 def set_amp_manager(amp_manager_instance):
@@ -96,7 +71,7 @@ def create_interface():
 
         timer_conversation = gr.Timer(value=5)
         timer_conversation.tick(
-            fn=auto_refresh_conversation,
+            fn=refresh_current_conversation,
             inputs=[conversation_dropdown],
             outputs=[conversation_content],
         )
@@ -109,6 +84,6 @@ def create_interface():
         )
 
         # Add this line at the end of the Blocks context
-        iface.load(fn=initialize_conversations, outputs=[conversation_dropdown])
+        iface.load(fn=refresh_conversations, outputs=[conversation_dropdown])
 
     return iface

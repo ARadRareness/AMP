@@ -1,5 +1,4 @@
 import gradio as gr
-from amp_manager import AmpManager
 
 amp_manager = None
 
@@ -21,7 +20,7 @@ def get_current_model_name():
 
 def create_interface():
     with gr.Blocks() as iface:
-        gr.Markdown("# Conversation Viewer")
+        gr.Markdown("# Model information")
 
         current_model = gr.Textbox(
             label="Current Model",
