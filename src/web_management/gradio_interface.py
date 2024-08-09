@@ -28,7 +28,7 @@ def shutdown_gradio():
 
 # Create a tabbed interface
 with gr.Blocks() as iface:
-    gr.Markdown("# Main Interface")
+    gr.Markdown("# AMP")
 
     with gr.Tabs():
 

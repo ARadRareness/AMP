@@ -1,7 +1,7 @@
 from flask import Flask, Response, jsonify, render_template_string, request
 import threading
 import signal
-from amp_manager import AmpManager
+from amp_manager.amp_manager import AmpManager
 from web_management.gradio_interface_greeting import (
     get_current_name,
 )
@@ -66,6 +66,13 @@ def get_model_info():
 def generate_response() -> Response:
     result, response = ampManager.generate_response(request.get_json())
     return jsonify({"result": result, "response": response})
+
+
+@app.route("/stt", methods=["POST"])
+def speech_to_text():
+    result, response = ampManager.speech_to_text(request)
+    print(result, response)
+    return jsonify({"result": result, **response})
 
 
 if __name__ == "__main__":

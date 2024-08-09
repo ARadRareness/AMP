@@ -1,21 +1,30 @@
+import hashlib
 import os
 import sys
 import traceback
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
+
+from amp_manager.model_unloader import ModelUnloader
+from audio.whisper_manager import WhisperManager
 from language_models.model_conversation import ModelConversation
 from language_models.providers.llamacpp.llamacpp_manager import LlamaCppManager
-import threading
 
 
 class AmpManager:
     def __init__(self):
         self.state = {}
-        self.llamacpp_manager: LlamaCppManager = self.initialize_llamacpp()
+        self.llamacpp_manager: LlamaCppManager = self._initialize_llamacpp()
+        self.whisper_manager: WhisperManager = WhisperManager()
         self.gradio_port = 8080
         self.gradio_html_iframe = self.initialize_gradio_html()
         self.conversations: Dict[str, ModelConversation] = {}
-        self.unload_timer = None
-        self.model_unload_timeout = 600  # 0  # 10 minutes in seconds
+
+        self.llamacpp_unloader = ModelUnloader(
+            func=self.llamacpp_manager.unload_model, unload_timeout=600
+        )
+        self.whisper_unloader = ModelUnloader(
+            func=lambda: self.whisper_manager.unload_model(), unload_timeout=600
+        )
 
     def get_available_models(self):
         return True, self.llamacpp_manager.get_available_models()
@@ -64,7 +73,7 @@ class AmpManager:
     def generate_response(self, data):
         try:
             # Cancel any existing timer
-            self.cancel_unload_timer()
+            self.llamacpp_unloader.cancel_unload_timer()
 
             conversation_id = data.get("conversation_id")
             user_message = data.get("message")
@@ -100,7 +109,7 @@ class AmpManager:
             )
 
             # Set a new timer after generating the response
-            self.set_unload_timer()
+            self.llamacpp_unloader.set_unload_timer()
 
             return True, response
 
@@ -160,7 +169,7 @@ class AmpManager:
     </svg>
     """
 
-    def initialize_llamacpp(self):
+    def _initialize_llamacpp(self):
         binary_path = ""
         llama_cpp_path = "bin"
         for variants in ["llama-server", "server"]:
@@ -206,15 +215,27 @@ class AmpManager:
 
         return message
 
-    def set_unload_timer(self):
-        self.unload_timer = threading.Timer(
-            self.model_unload_timeout, self.unload_model
-        )
-        self.unload_timer.start()
+    def speech_to_text(self, request):
+        if "file" not in request.files:
+            return False, {"error_message": "No file part"}
 
-    def cancel_unload_timer(self):
-        if self.unload_timer:
-            self.unload_timer.cancel()
+        file = request.files["file"]
+        if file.filename == "":
+            return False, {"error_message": "No selected file"}
+        if file and self._allowed_file(file.filename):
+            self.whisper_unloader.cancel_unload_timer()
 
-    def unload_model(self):
-        self.llamacpp_manager.unload_model()
+            audio_content: str = file.read()
+            transcript = self.whisper_manager.transcribe(audio_content)
+
+            self.whisper_unloader.set_unload_timer()
+
+            return True, {"transcript": transcript}
+
+        return False, {"error_message": "No selected file"}
+
+    def _allowed_file(self, filename: Optional[str]) -> bool:
+        if filename:
+            return "." in filename and filename.rsplit(".", 1)[1].lower() in ["wav"]
+        else:
+            return False
