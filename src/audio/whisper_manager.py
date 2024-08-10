@@ -13,6 +13,9 @@ class WhisperManager:
             del self.whisper_model
             self.whisper_model = None
 
+    def model_is_loaded(self) -> bool:
+        return self.whisper_model is not None
+
     def transcribe(self, audio_content):
         md5_hash = hashlib.md5(audio_content).hexdigest()
         filename = f"{md5_hash}.wav"
