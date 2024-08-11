@@ -1,11 +1,11 @@
-import hashlib
 import os
 import sys
 import traceback
 from typing import Dict, Optional, Tuple
 
 from amp_manager.model_unloader import ModelUnloader
-from audio.whisper_manager import WhisperManager
+from audio.speech_to_text.whisper_manager import WhisperManager
+from audio.text_to_speech.xtts_manager import XttsManager
 from language_models.model_conversation import ModelConversation
 from language_models.providers.llamacpp.llamacpp_manager import LlamaCppManager
 
@@ -15,6 +15,7 @@ class AmpManager:
         self.state = {}
         self.llamacpp_manager: LlamaCppManager = self._initialize_llamacpp()
         self.whisper_manager: WhisperManager = WhisperManager()
+        self.xtts_manager: XttsManager = XttsManager()
         self.gradio_port = 8080
         self.gradio_html_iframe = self.initialize_gradio_html()
         self.conversations: Dict[str, ModelConversation] = {}
@@ -24,6 +25,9 @@ class AmpManager:
         )
         self.whisper_unloader = ModelUnloader(
             func=lambda: self.whisper_manager.unload_model(), unload_timeout=600
+        )
+        self.xtts_unloader = ModelUnloader(
+            func=lambda: self.xtts_manager.unload_model(), unload_timeout=600
         )
 
     def get_available_models(self):
@@ -239,3 +243,9 @@ class AmpManager:
             return "." in filename and filename.rsplit(".", 1)[1].lower() in ["wav"]
         else:
             return False
+
+    def text_to_speech_with_split(self, text: str):
+        self.xtts_unloader.cancel_unload_timer()
+        wav_files = self.xtts_manager.text_to_speech_with_split(text)
+        self.xtts_unloader.set_unload_timer()
+        return wav_files

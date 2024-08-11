@@ -1,7 +1,12 @@
 gguf
-numpy<2.0
+numpy==1.22.0
 
 sentencepiece
 
 gradio
 flask
+
+TTS
+simpleaudio
+
+faster-whisper

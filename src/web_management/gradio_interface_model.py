@@ -1,9 +1,11 @@
 import gradio as gr
 
+from amp_manager.amp_manager import AmpManager
+
 amp_manager = None
 
 
-def set_amp_manager(amp_manager_instance):
+def set_amp_manager(amp_manager_instance: AmpManager):
     global amp_manager
     amp_manager = amp_manager_instance
 
