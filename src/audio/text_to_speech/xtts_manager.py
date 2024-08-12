@@ -75,7 +75,12 @@ class XttsManager:
 
         return response
 
+    def model_is_loaded(self):
+        return self.tts is not None
+
     def unload_model(self):
         if self.tts is not None:
             del self.tts
             self.tts = None
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()

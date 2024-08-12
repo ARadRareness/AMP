@@ -3,6 +3,8 @@ import traceback
 from flask import Flask, Response, jsonify, render_template_string, request
 import threading
 import signal
+import shutil
+from dotenv import load_dotenv
 from amp_manager.amp_manager import AmpManager
 from web_management.gradio_interface_greeting import (
     get_current_name,
@@ -18,6 +20,11 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = (
     "TRUE"  # Fix for OMP: Error #15: Initializing libiomp5md.dll, but found libomp140.x86_64.dll already initialized.
 )
+
+if not os.path.exists(".env"):
+    shutil.copy(".env_defaults", ".env")
+
+load_dotenv()
 
 ampManager = AmpManager()
 
