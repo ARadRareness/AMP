@@ -17,7 +17,6 @@ class ApiModel:
         messages: Sequence[ModelMessage],
         max_tokens: int = 200,
         temperature: float = 0.2,
-        use_metadata: bool = False,
         response_prefix: str = "",
     ) -> ModelResponse:
         return ModelResponse("TEXT", "MODEL_NAME")

@@ -13,7 +13,7 @@ class MistralFormatter(PromptFormatter):
 
     # returns a list containing ints and strings
     def generate_prompt(
-        self, messages: Sequence[ModelMessage], use_metadata: bool = False
+        self, messages: Sequence[ModelMessage]
     ) -> List[Union[int, str]]:
         prompt: List[Union[int, str]] = [self.BOS]
 

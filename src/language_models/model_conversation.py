@@ -13,8 +13,6 @@ class ModelConversation:
     ):
         self.messages: List[ModelMessage] = []
         self.single_message_mode: bool = single_message_mode
-        # self.tool_manager: ToolManager = ToolManager()
-        # self.memory_manager: MemoryManager = memory_manager
         self.model_path: str = model_path
 
     def get_model_path(self) -> str:
@@ -62,11 +60,6 @@ class ModelConversation:
         model: ApiModel,
         max_tokens: int,
         single_message_mode: bool,
-        use_metadata: bool = False,
-        use_tools: bool = False,
-        use_reflections: bool = False,
-        use_knowledge: bool = False,
-        ask_permission_to_run_tools: bool = False,
         response_prefix: str = "",
     ) -> str:
         messages = self.get_messages(single_message_mode)
@@ -74,7 +67,6 @@ class ModelConversation:
         response = model.generate_text(
             messages,
             max_tokens,
-            use_metadata=use_metadata,
             response_prefix=response_prefix,
         )
 

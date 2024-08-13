@@ -9,9 +9,7 @@ class Llama3Formatter(PromptFormatter):
         super().__init__("LLAMA3")
 
     # returns a list containing ints and strings
-    def generate_prompt(
-        self, messages: Sequence[ModelMessage], use_metadata: bool = False
-    ) -> str:
+    def generate_prompt(self, messages: Sequence[ModelMessage]) -> str:
         prompt: str = ""  # Llama.cpp will inject the token below automatically
         # prompt = "<|begin_of_text|>"
 

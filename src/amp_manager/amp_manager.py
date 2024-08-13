@@ -104,11 +104,6 @@ class AmpManager:
                 self.llamacpp_manager.active_models[0],
                 max_tokens,
                 single_message_mode,
-                use_metadata=True,
-                use_tools=False,
-                use_reflections=False,
-                use_knowledge=False,
-                ask_permission_to_run_tools=False,
                 response_prefix=response_prefix,
             )
 

@@ -8,7 +8,7 @@ class PromptFormatter:
         self.model_type = model_type
 
     def generate_prompt(
-        self, messages: Sequence[ModelMessage], use_metadata: bool = False
+        self, messages: Sequence[ModelMessage]
     ) -> str | List[Union[int, str]]:
         prompt = ""
 
