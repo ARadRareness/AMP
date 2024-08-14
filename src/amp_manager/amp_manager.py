@@ -239,8 +239,10 @@ class AmpManager:
         else:
             return False
 
-    def text_to_speech_with_split(self, text: str):
+    def text_to_speech_with_split(
+        self, text: str, clone_audio_data: Optional[bytes] = None
+    ):
         self.xtts_unloader.cancel_unload_timer()
-        wav_files = self.xtts_manager.text_to_speech_with_split(text)
+        wav_files = self.xtts_manager.text_to_speech_with_split(text, clone_audio_data)
         self.xtts_unloader.set_unload_timer()
         return wav_files

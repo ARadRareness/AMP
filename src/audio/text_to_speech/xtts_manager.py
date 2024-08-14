@@ -1,8 +1,7 @@
-from typing import List
+from typing import List, Optional
 import torch
 import hashlib
 import os
-import subprocess
 from TTS.api import TTS  # type: ignore
 import spacy
 
@@ -13,7 +12,9 @@ class XttsManager:
         print("TTS IS USING", self.device)
         self.tts = None
 
-    def text_to_speech(self, text: str) -> str:
+    def text_to_speech(
+        self, text: str, clone_audio_data: Optional[bytes] = None
+    ) -> str:
         output_folder = "output"
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
@@ -22,12 +23,19 @@ class XttsManager:
         output_path = os.path.join(output_folder, f"{md5sum}.wav")
 
         if not os.path.exists(output_path):
-            speaker_wav = os.getenv("AUDIO.VOICE_TO_CLONE", "example_audio.wav")
-
             if self.tts is None:
                 self.tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(
                     self.device
                 )
+
+            if clone_audio_data:
+                # Create a temporary file for the clone audio data
+                temp_audio_path = os.path.join(output_folder, "temp_clone_audio.wav")
+                with open(temp_audio_path, "wb") as temp_file:
+                    temp_file.write(clone_audio_data)
+                speaker_wav = temp_audio_path
+            else:
+                speaker_wav = os.getenv("AUDIO.VOICE_TO_CLONE", "example_audio.wav")
 
             if os.path.exists(speaker_wav):
                 self.tts.tts_to_file(  # type: ignore
@@ -38,9 +46,16 @@ class XttsManager:
                 )
             else:
                 print(f"Error: Add a voice file to {speaker_wav} to clone that voice")
+
+            # Remove the temporary file if it was created
+            if clone_audio_data and os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+
         return output_path
 
-    def text_to_speech_with_split(self, text: str):
+    def text_to_speech_with_split(
+        self, text: str, clone_audio_data: Optional[bytes] = None
+    ):
         try:
             nlp = spacy.load("en_core_web_sm")
         except:
@@ -64,7 +79,7 @@ class XttsManager:
             sentences.append(current_sentence)
 
         for sentence in sentences:
-            yield self.text_to_speech(sentence)
+            yield self.text_to_speech(sentence, clone_audio_data)
 
     def filter_text(self, text: str) -> str:
         response = "".join(

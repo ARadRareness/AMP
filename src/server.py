@@ -93,13 +93,16 @@ def speech_to_text():
 @app.route("/tts", methods=["POST"])
 def tts() -> Response:
     try:
-        data = request.get_json()
+        data = request.form
         text = data.get("text")
+        clone_audio = request.files.get("clone_audio")
 
         if not text:
             raise ValueError("Missing 'text' in the request.")
 
-        wav_file_paths = ampManager.text_to_speech_with_split(text)
+        clone_audio_data = clone_audio.read() if clone_audio else None
+
+        wav_file_paths = ampManager.text_to_speech_with_split(text, clone_audio_data)
 
         def generate():
             for wav_file_path in wav_file_paths:
