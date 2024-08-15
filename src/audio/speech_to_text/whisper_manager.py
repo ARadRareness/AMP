@@ -29,8 +29,10 @@ class WhisperManager:
 
         # Initialize Whisper model if it hasn't been already
         if self.whisper_model is None:
+            model_name = os.getenv("AUDIO.WHISPER_MODEL", "base.en")
+            print(f"Loading whisper model {model_name}")
             self.whisper_model = WhisperModel(
-                "large-v2", device="cuda", compute_type="float16"
+                model_name, device="cuda", compute_type="int8_float16"  # "float16"
             )
 
         initial_whisper_prompt = "DEFAULT"
