@@ -19,7 +19,9 @@ class LlamaCppManager:
     def model_is_loaded(self) -> bool:
         return self.popen != None
 
-    def load_model(self, model_index: int = -1, gpu_layers: int = -1) -> None:
+    def load_model(
+        self, model_index: int = -1, gpu_layers: int = -1, context_window_size: int = -1
+    ) -> None:
         if model_index == -1:
             last_model_used = os.getenv("MODEL.LAST_USED", "")
             available_models = self.get_available_models()
@@ -39,14 +41,18 @@ class LlamaCppManager:
 
         model_identifier = available_models[model_index]
 
+        print("STARTING MODEL LOAD")
         # Load a local model
         model_path = os.path.join("models", model_identifier)
-        print("PROMPT FORMAT:", self.read_prompt_format(model_path))
+        # print("PROMPT FORMAT:", self.read_prompt_format(model_path))
 
         print(self.llama_cpp_path)
 
         if gpu_layers == -1:
             gpu_layers = int(os.getenv("MODEL.GPU_LAYERS", 9001))
+
+        if context_window_size == -1:
+            context_window_size = int(os.getenv("LLAMACPP.CONTEXT_WINDOW_SIZE", 8192))
 
         # Start a new child process with the llama cpp path and the model path as arguments
         self.popen = subprocess.Popen(
@@ -55,8 +61,7 @@ class LlamaCppManager:
                 "--n-gpu-layers",
                 str(gpu_layers),
                 "--ctx-size",
-                str(8192 * 4),
-                # str(self.context_window),
+                str(context_window_size),
                 "--port",
                 str(self.start_port),
                 "-m",
@@ -126,7 +131,9 @@ class LlamaCppManager:
         else:
             return PromptFormatter()
 
-    def change_model(self, model_path: str, gpu_layers: int = -1) -> None:
+    def change_model(
+        self, model_path: str, gpu_layers: int = -1, context_window_size: int = -1
+    ) -> None:
         for model in self.active_models:
             if model.get_model_path() == model_path:
                 return
@@ -137,7 +144,7 @@ class LlamaCppManager:
             print(f"Error: Model {model_path} not found.")
             return
 
-        self.load_model(model_index, gpu_layers)
+        self.load_model(model_index, gpu_layers, context_window_size)
 
     def get_available_models(self) -> List[str]:
         models = list(filter(lambda f: f.endswith(".gguf"), os.listdir("models")))
