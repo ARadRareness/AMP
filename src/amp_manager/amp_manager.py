@@ -6,6 +6,7 @@ from typing import Dict, Optional, Tuple
 from amp_manager.model_unloader import ModelUnloader
 from audio.speech_to_text.whisper_manager import WhisperManager
 from audio.text_to_speech.xtts_manager import XttsManager
+from image.image_generation.flux_manager import FluxManager
 from language_models.model_conversation import ModelConversation
 from language_models.providers.llamacpp.llamacpp_manager import LlamaCppManager
 
@@ -16,6 +17,7 @@ class AmpManager:
         self.llamacpp_manager: LlamaCppManager = self._initialize_llamacpp()
         self.whisper_manager: WhisperManager = WhisperManager()
         self.xtts_manager: XttsManager = XttsManager()
+        self.flux_manager: FluxManager = FluxManager()
         self.gradio_port = 8080
         self.gradio_html_iframe = self.initialize_gradio_html()
         self.conversations: Dict[str, ModelConversation] = {}
@@ -246,3 +248,8 @@ class AmpManager:
         wav_files = self.xtts_manager.text_to_speech_with_split(text, clone_audio_data)
         self.xtts_unloader.set_unload_timer()
         return wav_files
+
+    def generate_image(self, prompt, width, height, guidance_scale=None, seed=None):
+        return self.flux_manager.generate_image(
+            prompt, width, height, guidance_scale, seed
+        )

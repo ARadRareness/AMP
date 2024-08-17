@@ -7,8 +7,15 @@ gradio
 flask
 python-dotenv
 
+# Audio text to speech
 TTS
-simpleaudio
 
+# Audio speech to text
 faster-whisper
 
+# Image generation
+diffusers
+accelerate
+
+# Quantization of Flux model
+optimum-quanto

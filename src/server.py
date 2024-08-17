@@ -16,6 +16,8 @@ from web_management.gradio_interface import (
 )
 
 import os
+import base64
+from io import BytesIO
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = (
     "TRUE"  # Fix for OMP: Error #15: Initializing libiomp5md.dll, but found libomp140.x86_64.dll already initialized.
@@ -113,6 +115,26 @@ def tts() -> Response:
                     yield wav_data
 
         return Response(generate(), mimetype="audio/wav")
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"result": False, "error_message": str(e)})
+
+
+@app.route("/generate_image", methods=["POST"])
+def generate_image() -> Response:
+    try:
+        prompt = request.get_json().get("prompt")
+        width = request.get_json().get("width", 1024)
+        height = request.get_json().get("height", 1024)
+        seed = request.get_json().get("seed", None)
+        image = ampManager.generate_image(prompt, width, height, seed=seed)
+
+        # Convert image to base64
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+
+        return jsonify({"result": True, "image": img_str})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"result": False, "error_message": str(e)})
