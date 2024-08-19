@@ -6,6 +6,7 @@ import signal
 import shutil
 from dotenv import load_dotenv
 from amp_manager.amp_manager import AmpManager
+from messaging.telegram_manager import TelegramManager
 from web_management.gradio_interface_greeting import (
     get_current_name,
 )
@@ -19,6 +20,7 @@ import os
 import base64
 from io import BytesIO
 
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = (
     "TRUE"  # Fix for OMP: Error #15: Initializing libiomp5md.dll, but found libomp140.x86_64.dll already initialized.
 )
@@ -29,6 +31,7 @@ if not os.path.exists(".env"):
 load_dotenv()
 
 ampManager = AmpManager()
+telegramManager = TelegramManager()
 
 app = Flask(__name__)
 
@@ -140,7 +143,32 @@ def generate_image() -> Response:
         return jsonify({"result": False, "error_message": str(e)})
 
 
+@app.route("/telegram_message", methods=["POST"])
+def send_telegram_message() -> Response:
+    try:
+        data = request.get_json()
+        message = data.get("message")
+
+        if not message:
+            return jsonify(
+                {"result": False, "error_message": "Missing 'message' in the request."}
+            )
+
+        success = telegramManager.send_message(message)
+
+        if success:
+            return jsonify({"result": True, "response": "Message sent successfully"})
+        else:
+            return jsonify({"result": False, "error_message": "Failed to send message"})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"result": False, "error_message": str(e)})
+
+
 if __name__ == "__main__":
+
+    # Start TelegramManager thread
+    telegramManager.start_thread()
 
     # Start Gradio in a separate daemon thread
     gradio_thread = threading.Thread(
@@ -152,6 +180,7 @@ if __name__ == "__main__":
     def signal_handler(sig, frame):
         print("Shutting down...")
         shutdown_gradio()
+        telegramManager.end_thread()
         exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)

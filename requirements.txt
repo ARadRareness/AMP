@@ -19,3 +19,6 @@ accelerate
 
 # Quantization of Flux model
 optimum-quanto
+
+# Telegram bot support
+python-telegram-bot==13.12
