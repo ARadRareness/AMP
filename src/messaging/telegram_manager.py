@@ -1,4 +1,6 @@
+import datetime
 import os
+import uuid
 import threading
 from telegram import (
     Bot,
@@ -16,11 +18,15 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 
+from amp_manager.amp_manager import AmpManager
+
 
 class TelegramManager:
-    def __init__(self):
+    def __init__(self, amp_manager: AmpManager):
         self.bot_token = os.environ.get("TELEGRAM.BOT_TOKEN")
         self.chat_id = os.environ.get("TELEGRAM.CHAT_ID")
+        self.conversation_id = None
+        self.amp_manager = amp_manager
 
         if self.bot_token and self.chat_id:
             print("Telegram bot activated")
@@ -42,6 +48,7 @@ class TelegramManager:
         self.dispatcher.add_handler(CommandHandler("menu", self.menu))
         self.dispatcher.add_handler(CallbackQueryHandler(self.button_tap))
         self.dispatcher.add_handler(MessageHandler(~Filters.command, self.echo))
+        self.dispatcher.add_handler(CommandHandler("new", self.new_conversation))
 
     def send_message(self, message: str) -> bool:
         if not self.bot:
@@ -79,14 +86,31 @@ class TelegramManager:
         print(f"{update.message.from_user.first_name} wrote {update.message.text}")
         print(f"Chat ID: {update.message.chat_id}")
 
-        if self.screaming and update.message.text:
-            context.bot.send_message(
-                update.message.chat_id,
-                update.message.text.upper(),
-                entities=update.message.entities,
-            )
+        if str(update.message.chat_id) != self.chat_id:
+            return
+
+        if not self.conversation_id:
+            self.new_conversation(update, context)
+
+        # Always send the system prompt before generating a response
+        system_prompt = os.environ.get(
+            "TELEGRAM.SYSTEM_PROMPT", "You are a helpful assistant."
+        ).replace("{time}", datetime.datetime.now().strftime("%H:%M"))
+
+        self.amp_manager.add_system_message(
+            {"conversation_id": self.conversation_id, "message": system_prompt}
+        )
+
+        success, response = self.amp_manager.generate_response(
+            {"conversation_id": self.conversation_id, "message": update.message.text}
+        )
+
+        if success:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=response)
         else:
-            update.message.copy(update.message.chat_id)
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text=f"Error: {response}"
+            )
 
     def scream(self, update: Update, context: CallbackContext) -> None:
         self.screaming = True
@@ -118,6 +142,23 @@ class TelegramManager:
         update.callback_query.message.edit_text(
             text, ParseMode.HTML, reply_markup=markup
         )
+
+    def new_conversation(self, update: Update, context: CallbackContext) -> None:
+        self.conversation_id = f"telegram_{update.message.chat_id}_{uuid.uuid4()}"
+        success, message = self.amp_manager.add_system_message(
+            {
+                "conversation_id": self.conversation_id,
+                "message": os.environ.get(
+                    "TELEGRAM.SYSTEM_PROMPT", "You are a helpful assistant."
+                ).replace("{time}", datetime.datetime.now().strftime("%H:%M")),
+            }
+        )
+
+        if success:
+            print(f"New conversation created with ID: {self.conversation_id}")
+        else:
+            print(f"Failed to create a new conversation: {message}")
+            self.conversation_id = None
 
 
 # Constants for menus and buttons

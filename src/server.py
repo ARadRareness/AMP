@@ -31,7 +31,7 @@ if not os.path.exists(".env"):
 load_dotenv()
 
 ampManager = AmpManager()
-telegramManager = TelegramManager()
+telegramManager = TelegramManager(ampManager)
 
 app = Flask(__name__)
 
@@ -181,7 +181,8 @@ if __name__ == "__main__":
         print("Shutting down...")
         shutdown_gradio()
         telegramManager.end_thread()
-        exit(0)
+        print("Shutdown complete")
+        os._exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
 
