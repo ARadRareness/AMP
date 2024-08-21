@@ -19,7 +19,11 @@ class XttsManager:
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
-        md5sum = hashlib.md5(text.encode()).hexdigest()
+        # Combine text and clone_audio_data for MD5 calculation
+        hash_input = text.encode()
+        if clone_audio_data:
+            hash_input += clone_audio_data
+        md5sum = hashlib.md5(hash_input).hexdigest()
         output_path = os.path.join(output_folder, f"{md5sum}.wav")
 
         if not os.path.exists(output_path):

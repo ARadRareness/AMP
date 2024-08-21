@@ -7,6 +7,8 @@ AMP is a comprehensive solution for managing and orchestrating AI agents, design
 - **GGUF Model Support**: Utilize Llama.cpp for efficient inference with GGUF models
 - **Multi-Conversation Server**: Flask-based server handling multiple simultaneous conversations
 - **Management Interface**: Gradio-powered interface for system management and control
+- **Telegram Integration**: Interact with the LLM directly through a Telegram bot
+
 
 ## Getting Started
 
