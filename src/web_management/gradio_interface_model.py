@@ -17,6 +17,7 @@ def create_interface():
         create_llamacpp_interface()
         create_whisper_interface()
         create_xtts_interface()
+        create_flux_interface()
 
         # iface.load(fn=initialize_conversations, outputs=[conversation_dropdown])
 
@@ -89,6 +90,28 @@ def create_xtts_interface():
     return xtts_model_loaded
 
 
+def create_flux_interface():
+    flux_model_loaded = gr.Textbox(
+        label="Flux",
+        value=lambda: get_is_flux_model_loaded(),
+        interactive=False,
+    )
+
+    unload_flux_model_button = gr.Button("Unload Flux Model")
+    unload_flux_model_button.click(
+        fn=unload_flux_model, inputs=[], outputs=[flux_model_loaded]
+    )
+
+    timer_update_flux_model = gr.Timer(value=5)
+    timer_update_flux_model.tick(
+        fn=get_is_flux_model_loaded,
+        inputs=[],
+        outputs=[flux_model_loaded],
+    )
+
+    return flux_model_loaded
+
+
 def get_current_llamacpp_model_name():
     if amp_manager:
         return (
@@ -128,4 +151,16 @@ def get_is_xtts_model_loaded():
 def unload_xtts_model():
     if amp_manager.xtts_manager.model_is_loaded():
         amp_manager.xtts_manager.unload_model()
+    return "Not loaded"
+
+
+def get_is_flux_model_loaded():
+    if amp_manager:
+        return "Loaded" if amp_manager.flux_manager.model_is_loaded() else "Not loaded"
+    return "Not loaded"
+
+
+def unload_flux_model():
+    if amp_manager.flux_manager.model_is_loaded():
+        amp_manager.flux_manager.unload_model()
     return "Not loaded"

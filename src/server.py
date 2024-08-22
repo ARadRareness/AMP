@@ -130,11 +130,15 @@ def generate_image() -> Response:
         width = request.get_json().get("width", 1024)
         height = request.get_json().get("height", 1024)
         seed = request.get_json().get("seed", None)
-        image = ampManager.generate_image(prompt, width, height, seed=seed)
+        result_code, result = ampManager.generate_image(
+            prompt, width, height, seed=seed
+        )
 
-        # Convert image to base64
+        if not result_code:
+            return jsonify({"result": False, "error_message": result})
+
         buffered = BytesIO()
-        image.save(buffered, format="PNG")
+        result.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
 
         return jsonify({"result": True, "image": img_str})

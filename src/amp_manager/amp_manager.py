@@ -31,6 +31,9 @@ class AmpManager:
         self.xtts_unloader = ModelUnloader(
             func=lambda: self.xtts_manager.unload_model(), unload_timeout=600
         )
+        self.flux_unloader = ModelUnloader(
+            func=lambda: self.flux_manager.unload_model(), unload_timeout=600
+        )
 
     def get_available_models(self):
         return True, self.llamacpp_manager.get_available_models()
@@ -250,6 +253,19 @@ class AmpManager:
         return wav_files
 
     def generate_image(self, prompt, width, height, guidance_scale=None, seed=None):
-        return self.flux_manager.generate_image(
-            prompt, width, height, guidance_scale, seed
-        )
+        try:
+            # Cancel any existing timer
+            self.flux_unloader.cancel_unload_timer()
+
+            image = self.flux_manager.generate_image(
+                prompt, width, height, guidance_scale, seed
+            )
+
+            # Set a new timer after generating the image
+            self.flux_unloader.set_unload_timer()
+
+            return True, image
+
+        except Exception as e:
+            traceback.print_exc()
+            return False, str(e)
