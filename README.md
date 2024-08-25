@@ -1,6 +1,6 @@
 # AMP - Agent Management Platform
 
-AMP is a comprehensive solution for managing and orchestrating AI agents, designed to streamline interactions and enhance productivity.
+AMP is a powerful toolkit for managing and orchestrating AI agents, designed to streamline AI integration. It supports multiple multimodal models and serves as an efficient server solution for smaller projects requiring AI capabilities. AMP encompasses a range of functionalities from language processing to speech recognition and image generation. We've incorporated features to enhance productivity while maintaining ease of use. For those seeking to incorporate AI into their projects with minimal complexity, AMP might be the comprehensive solution you are looking for.
 
 ## Features
 
@@ -8,6 +8,9 @@ AMP is a comprehensive solution for managing and orchestrating AI agents, design
 - **Multi-Conversation Server**: Flask-based server handling multiple simultaneous conversations
 - **Management Interface**: Gradio-powered interface for system management and control
 - **Telegram Integration**: Interact with the LLM directly through a Telegram bot
+- **Speech-to-Text**: Convert audio files to text using Whisper
+- **Text-to-Speech**: Generate speech from text, with optional voice cloning using XTTS-v2
+- **Image Generation**: Create images based on text prompts using FLUX.1 [schnell]
 
 
 ## Getting Started
