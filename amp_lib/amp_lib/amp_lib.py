@@ -25,7 +25,7 @@ class AmpClient:
 
         return response.json() if json_mode else response.text
 
-    def _get(self, endpoint: str, params: Dict[str, Any] = None) -> Tuple[bool, Any]:
+    def _get(self, endpoint: str, params: Dict[str, Any] = None) -> Any:
         response = requests.get(f"{self.base_url}/{endpoint}", params=params)
 
         if response.status_code != 200:
@@ -34,28 +34,24 @@ class AmpClient:
 
         return response.text
 
-    def add_system_message(
-        self, conversation_id: str, message: str
-    ) -> Tuple[bool, str]:
+    def add_system_message(self, conversation_id: str, message: str) -> str:
         return self._post(
             "add_system_message",
             {"conversation_id": conversation_id, "message": message},
         )
 
-    def add_user_message(self, conversation_id: str, message: str) -> Tuple[bool, str]:
+    def add_user_message(self, conversation_id: str, message: str) -> str:
         return self._post(
             "add_user_message", {"conversation_id": conversation_id, "message": message}
         )
 
-    def add_assistant_message(
-        self, conversation_id: str, message: str
-    ) -> Tuple[bool, str]:
+    def add_assistant_message(self, conversation_id: str, message: str) -> str:
         return self._post(
             "add_assistant_message",
             {"conversation_id": conversation_id, "message": message},
         )
 
-    def get_available_models(self) -> Tuple[bool, List[str]]:
+    def get_available_models(self) -> List[str]:
         return self._get("get_available_models")
 
     def get_model_info(self, conversation_id: str) -> Dict[str, Any]:
@@ -70,7 +66,7 @@ class AmpClient:
         max_tokens: int = None,
         single_message_mode: bool = False,
         response_prefix: str = "",
-    ) -> Tuple[bool, str]:
+    ) -> str:
         data = {
             "conversation_id": conversation_id,
             "message": message,
@@ -80,7 +76,7 @@ class AmpClient:
         }
         return self._post("generate_response", data)
 
-    def speech_to_text(self, audio_file_path: str) -> Tuple[bool, Dict[str, str]]:
+    def speech_to_text(self, audio_file_path: str) -> Dict[str, str]:
         with open(audio_file_path, "rb") as file:
             files = {"file": file}
             return self._post("stt", files=files)
@@ -133,5 +129,5 @@ class AmpClient:
         # Create an image from the decoded data
         return Image.open(BytesIO(image_data))
 
-    def send_telegram_message(self, message: str) -> Tuple[bool, str]:
+    def send_telegram_message(self, message: str) -> str:
         return self._post("telegram_message", {"message": message})
