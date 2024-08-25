@@ -2,11 +2,11 @@ import os
 import subprocess
 from typing import List
 
-from language_models.api_model import ApiModel
-from language_models.prompt_formatter import PromptFormatter
-from language_models.providers.llamacpp.formatters.llama3 import Llama3Formatter
-from language_models.providers.llamacpp.formatters.mistral import MistralFormatter
-from language_models.providers.llamacpp.llamacpp_model import LlamaCppModel
+from amp.language_models.api_model import ApiModel
+from amp.language_models.prompt_formatter import PromptFormatter
+from amp.language_models.providers.llamacpp.formatters.llama3 import Llama3Formatter
+from amp.language_models.providers.llamacpp.formatters.mistral import MistralFormatter
+from amp.language_models.providers.llamacpp.llamacpp_model import LlamaCppModel
 
 
 class LlamaCppManager:

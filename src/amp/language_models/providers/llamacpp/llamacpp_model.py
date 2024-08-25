@@ -1,10 +1,10 @@
 from typing import Sequence
 import requests
 import json
-from language_models.api_model import ApiModel
-from language_models.model_message import ModelMessage
-from language_models.model_response import ModelResponse
-from language_models.prompt_formatter import PromptFormatter
+from amp.language_models.api_model import ApiModel
+from amp.language_models.model_message import ModelMessage
+from amp.language_models.model_response import ModelResponse
+from amp.language_models.prompt_formatter import PromptFormatter
 
 
 class LlamaCppModel(ApiModel):

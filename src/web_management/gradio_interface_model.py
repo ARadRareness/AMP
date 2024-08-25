@@ -1,6 +1,6 @@
 import gradio as gr
 
-from amp_manager.amp_manager import AmpManager
+from amp.amp_manager.amp_manager import AmpManager
 
 amp_manager = None
 

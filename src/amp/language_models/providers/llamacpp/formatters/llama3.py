@@ -1,6 +1,6 @@
 from typing import Sequence
-from language_models.model_message import ModelMessage
-from language_models.prompt_formatter import PromptFormatter
+from amp.language_models.model_message import ModelMessage
+from amp.language_models.prompt_formatter import PromptFormatter
 
 
 # This formatter seems to not be able to produce reliable results, probably due to <s> not expected to be an ordinary string token

@@ -18,7 +18,7 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 
-from amp_manager.amp_manager import AmpManager
+from amp.amp_manager.amp_manager import AmpManager
 
 
 class TelegramManager:

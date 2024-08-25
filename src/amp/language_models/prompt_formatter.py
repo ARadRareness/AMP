@@ -1,6 +1,6 @@
 from typing import List, Sequence, Union
 
-from language_models.model_message import ModelMessage
+from amp.language_models.model_message import ModelMessage
 
 
 class PromptFormatter:

@@ -5,7 +5,7 @@ import threading
 import signal
 import shutil
 from dotenv import load_dotenv
-from amp_manager.amp_manager import AmpManager
+from amp.amp_manager.amp_manager import AmpManager
 from messaging.telegram_manager import TelegramManager
 from web_management.gradio_interface_greeting import (
     get_current_name,

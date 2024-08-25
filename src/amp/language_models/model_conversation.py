@@ -1,8 +1,8 @@
 import datetime
-from typing import List, Sequence
-from language_models.api_model import ApiModel
+from typing import List
+from amp.language_models.api_model import ApiModel
 
-from language_models.model_message import ModelMessage, Role
+from amp.language_models.model_message import ModelMessage, Role
 
 
 class ModelConversation:

@@ -1,7 +1,7 @@
 from typing import Sequence
-from language_models.model_message import ModelMessage
-from language_models.model_response import ModelResponse
-from language_models.prompt_formatter import PromptFormatter
+from amp.language_models.model_message import ModelMessage
+from amp.language_models.model_response import ModelResponse
+from amp.language_models.prompt_formatter import PromptFormatter
 
 
 class ApiModel:

@@ -3,12 +3,12 @@ import sys
 import traceback
 from typing import Dict, Optional, Tuple
 
-from amp_manager.model_unloader import ModelUnloader
-from audio.speech_to_text.whisper_manager import WhisperManager
-from audio.text_to_speech.xtts_manager import XttsManager
-from image.image_generation.flux_manager import FluxManager
-from language_models.model_conversation import ModelConversation
-from language_models.providers.llamacpp.llamacpp_manager import LlamaCppManager
+from amp.amp_manager.model_unloader import ModelUnloader
+from amp.audio.speech_to_text.whisper_manager import WhisperManager
+from amp.audio.text_to_speech.xtts_manager import XttsManager
+from amp.image.image_generation.flux_manager import FluxManager
+from amp.language_models.model_conversation import ModelConversation
+from amp.language_models.providers.llamacpp.llamacpp_manager import LlamaCppManager
 
 
 class AmpManager:
