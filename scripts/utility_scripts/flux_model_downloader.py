@@ -6,6 +6,9 @@
 # $ pip install git+https://github.com/huggingface/diffusers.git
 # $ pip install optimum-quanto
 
+# This is a script to download the FLUX.1-schnell model from Hugging Face, quantize it (qint4 or qfloat8), and save it to the models folder.
+# In order to use this script, you need to have a GPU with at least 16GB of VRAM or more.
+
 import torch
 import os
 

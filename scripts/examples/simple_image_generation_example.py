@@ -1,12 +1,6 @@
 import os
-import sys
 
-# Hack to add the 'src' directory to the Python path
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-
-from amp_lib.amp_lib import AmpClient
+from amp_lib import AmpClient
 
 
 def save_generated_image(
