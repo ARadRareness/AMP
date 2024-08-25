@@ -221,7 +221,7 @@ class AmpManager:
 
     def speech_to_text(self, request):
         if "file" not in request.files:
-            return False, {"error_message": "No file part"}
+            return False, "No file part"
 
         file = request.files["file"]
         if file.filename == "":
@@ -234,9 +234,9 @@ class AmpManager:
 
             self.whisper_unloader.set_unload_timer()
 
-            return True, {"transcript": transcript}
+            return True, transcript
 
-        return False, {"error_message": "No selected file"}
+        return False, "No selected file"
 
     def _allowed_file(self, filename: Optional[str]) -> bool:
         if filename:

@@ -54,45 +54,59 @@ def serve_icon():
 @app.route("/add_system_message", methods=["POST"])
 def add_system_message() -> Response:
     result, response = ampManager.add_system_message(request.get_json())
-    return jsonify({"result": result, "response": response})
+    if not result:
+        return jsonify({"error": response}), 400
+    return Response(response, mimetype="text/plain")
 
 
 @app.route("/add_user_message", methods=["POST"])
 def add_user_message() -> Response:
     result, response = ampManager.add_user_message(request.get_json())
-    return jsonify({"result": result, "response": response})
+    if not result:
+        return jsonify({"error": response}), 400
+    return Response(response, mimetype="text/plain")
 
 
 @app.route("/add_assistant_message", methods=["POST"])
 def add_assistant_message() -> Response:
     result, response = ampManager.add_assistant_message(request.get_json())
-    return jsonify({"result": result, "response": response})
+    if not result:
+        return jsonify({"error": response}), 400
+    return Response(response, mimetype="text/plain")
 
 
 @app.route("/get_available_models", methods=["GET"])
 def get_available_models():
     result, response = ampManager.get_available_models()
-    return jsonify({"result": result, "response": response})
+    if not result:
+        return jsonify({"error": response}), 400
+    return jsonify(response)
 
 
-@app.route("/get_model_info", methods=["GET"])
+@app.route("/get_model_info", methods=["POST"])
 def get_model_info():
-    conversation_id = request.args.get("conversation_id")
+    data = request.get_json()
+    conversation_id = data.get("conversation_id")
     result, response = ampManager.get_model_info(conversation_id)
-    return jsonify({"result": result, "info": response})
+    if not result:
+        return jsonify({"error": response}), 400
+    return jsonify(response)
 
 
 @app.route("/generate_response", methods=["POST"])
 def generate_response() -> Response:
     result, response = ampManager.generate_response(request.get_json())
-    return jsonify({"result": result, "response": response})
+    if not result:
+        return jsonify({"error": response}), 400
+    return Response(response, mimetype="text/plain")
 
 
 @app.route("/stt", methods=["POST"])
 def speech_to_text():
     result, response = ampManager.speech_to_text(request)
-    print(result, response)
-    return jsonify({"result": result, **response})
+    if not result:
+        return jsonify({"error": response}), 400
+    return Response(response, mimetype="text/plain")
 
 
 @app.route("/tts", methods=["POST"])
@@ -120,7 +134,7 @@ def tts() -> Response:
         return Response(generate(), mimetype="audio/wav")
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"result": False, "error_message": str(e)})
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/generate_image", methods=["POST"])
@@ -135,16 +149,16 @@ def generate_image() -> Response:
         )
 
         if not result_code:
-            return jsonify({"result": False, "error_message": result})
+            return jsonify({"error": result}), 400
 
         buffered = BytesIO()
         result.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
 
-        return jsonify({"result": True, "image": img_str})
+        return Response(img_str, mimetype="text/plain")
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"result": False, "error_message": str(e)})
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/telegram_message", methods=["POST"])
@@ -154,19 +168,17 @@ def send_telegram_message() -> Response:
         message = data.get("message")
 
         if not message:
-            return jsonify(
-                {"result": False, "error_message": "Missing 'message' in the request."}
-            )
+            return jsonify({"error": "Missing 'message' in the request."}), 400
 
         success = telegramManager.send_message(message)
 
         if success:
-            return jsonify({"result": True, "response": "Message sent successfully"})
+            return Response("Message sent successfully", mimetype="text/plain")
         else:
-            return jsonify({"result": False, "error_message": "Failed to send message"})
+            return jsonify({"error": "Failed to send message"}), 500
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"result": False, "error_message": str(e)})
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
