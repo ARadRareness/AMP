@@ -49,10 +49,12 @@ class LlamaCppManager:
         print(self.llama_cpp_path)
 
         if gpu_layers == -1:
-            gpu_layers = int(os.getenv("MODEL.GPU_LAYERS", 9001))
+            gpu_layers = int(os.getenv("LLAMACPP.GPU_LAYERS", 9001))
 
         if context_window_size == -1:
             context_window_size = int(os.getenv("LLAMACPP.CONTEXT_WINDOW_SIZE", 8192))
+
+        repeat_penalty = os.getenv("LLAMACPP.REPEAT_PENALTY", 1.1)
 
         # Start a new child process with the llama cpp path and the model path as arguments
         self.popen = subprocess.Popen(
@@ -66,6 +68,8 @@ class LlamaCppManager:
                 str(self.start_port),
                 "-m",
                 model_path,
+                "--repeat-penalty",
+                str(repeat_penalty),
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

@@ -162,7 +162,7 @@ def generate_image() -> Response:
 
 
 @app.route("/telegram_message", methods=["POST"])
-def send_telegram_message() -> Response:
+def send_telegram_message():
     try:
         data = request.get_json()
         message = data.get("message")
