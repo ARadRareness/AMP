@@ -6,6 +6,21 @@ import os
 
 from amp_lib import AmpClient
 
+"""
+TaskClock: A Tkinter-based task management and time tracking application.
+
+This application allows users to:
+1. Add, edit, and remove tasks with specified durations
+2. Start a timer for each task
+3. Track task completion
+4. Receive notifications (via Telegram or messagebox) when tasks are completed
+5. Automatically reset and restart tasks if desired
+6. Save and load task data between sessions
+
+The interface provides buttons for task management, timer control, and configuration
+options for notifications and auto-reset functionality.
+"""
+
 
 class TaskClock:
     def __init__(self, master):

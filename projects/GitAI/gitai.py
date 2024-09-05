@@ -3,6 +3,20 @@ from typing import List, Optional
 from amp_lib import AmpClient  # Ensure amp_lib is installed or provide a stub file
 import uuid
 
+"""
+GitAI: An intelligent Git commit message generator
+
+This project provides a tool that analyzes Git diffs and generates suggested commit messages using AI. Key features include:
+
+1. Parsing Git diffs for both staged and unstaged changes
+2. Using the AmpClient to interact with an AI model for generating commit messages
+3. Maintaining a conversation context for iterative refinement of suggestions
+4. Displaying Git status information
+5. Allowing user input to influence subsequent suggestions
+
+The main class, GitDiffParser, handles the core functionality, while the main() function provides a simple CLI for interacting with the tool.
+"""
+
 
 class GitDiffParser:
     def __init__(self):
