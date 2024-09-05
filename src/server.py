@@ -31,7 +31,7 @@ if not os.path.exists(".env"):
 load_dotenv()
 
 ampManager = AmpManager()
-telegramManager = TelegramManager(ampManager)
+telegramManager = TelegramManager()
 
 app = Flask(__name__)
 
@@ -183,9 +183,6 @@ def send_telegram_message():
 
 if __name__ == "__main__":
 
-    # Start TelegramManager thread
-    telegramManager.start_thread()
-
     # Start Gradio in a separate daemon thread
     gradio_thread = threading.Thread(
         target=run_gradio, args=(ampManager.gradio_port, ampManager), daemon=True
@@ -196,7 +193,6 @@ if __name__ == "__main__":
     def signal_handler(sig, frame):
         print("Shutting down...")
         shutdown_gradio()
-        telegramManager.end_thread()
         print("Shutdown complete")
         os._exit(0)
 
