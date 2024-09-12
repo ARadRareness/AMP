@@ -16,7 +16,7 @@ class WhisperManager:
     def model_is_loaded(self) -> bool:
         return self.whisper_model is not None
 
-    def transcribe(self, audio_content):
+    def transcribe(self, audio_content, srt_mode: bool = False):
         md5_hash = hashlib.md5(audio_content).hexdigest()
         filename = f"{md5_hash}.wav"
         filepath = os.path.join("output", filename)
@@ -45,11 +45,30 @@ class WhisperManager:
             initial_prompt=initial_whisper_prompt,
             language=language,
             vad_filter=True,
-            # word_timestamps=True,
+            word_timestamps=True,  # Enable word timestamps for SRT
         )
-        transcript = " ".join([x.text for x in segments])
+
+        if srt_mode:
+            transcript = self.generate_srt(segments)
+        else:
+            transcript = " ".join([x.text for x in segments])
 
         # Clean up the saved file
         os.remove(filepath)
 
         return transcript.strip()
+
+    def generate_srt(self, segments):
+        srt_output = ""
+        for i, segment in enumerate(segments, start=1):
+            start = self.format_timestamp(segment.start)
+            end = self.format_timestamp(segment.end)
+            srt_output += f"{i}\n{start} --> {end}\n{segment.text}\n\n"
+        return srt_output.strip()
+
+    def format_timestamp(self, seconds):
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        seconds = seconds % 60
+        milliseconds = int((seconds - int(seconds)) * 1000)
+        return f"{hours:02d}:{minutes:02d}:{int(seconds):02d},{milliseconds:03d}"

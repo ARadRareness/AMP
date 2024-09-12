@@ -226,11 +226,16 @@ class AmpManager:
         file = request.files["file"]
         if file.filename == "":
             return False, {"error_message": "No selected file"}
-        if file and self._allowed_file(file.filename):
+        if not self._allowed_file(file.filename):
+            return False, {"error_message": "Invalid file type"}
+        if file:
             self.whisper_unloader.cancel_unload_timer()
 
             audio_content: str = file.read()
-            transcript = self.whisper_manager.transcribe(audio_content)
+            srt_mode = request.form.get("srt_mode", "false").lower() == "true"
+            transcript = self.whisper_manager.transcribe(
+                audio_content, srt_mode=srt_mode
+            )
 
             self.whisper_unloader.set_unload_timer()
 
@@ -240,7 +245,12 @@ class AmpManager:
 
     def _allowed_file(self, filename: Optional[str]) -> bool:
         if filename:
-            return "." in filename and filename.rsplit(".", 1)[1].lower() in ["wav"]
+            return "." in filename and filename.rsplit(".", 1)[1].lower() in [
+                "wav",
+                "mp3",
+                "mp4",
+                "mkv",
+            ]
         else:
             return False
 

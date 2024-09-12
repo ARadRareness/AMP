@@ -15,9 +15,12 @@ class AmpClient:
         endpoint: str,
         json: Dict[str, Any] = None,
         files: Dict[str, Any] = None,
+        data: Dict[str, Any] = None,
         json_mode: bool = False,
     ) -> Any:
-        response = requests.post(f"{self.base_url}/{endpoint}", json=json, files=files)
+        response = requests.post(
+            f"{self.base_url}/{endpoint}", json=json, files=files, data=data
+        )
 
         if response.status_code != 200:
             print(response.json())
@@ -76,10 +79,13 @@ class AmpClient:
         }
         return self._post("generate_response", data)
 
-    def speech_to_text(self, audio_file_path: str) -> Dict[str, str]:
+    def speech_to_text(
+        self, audio_file_path: str, srt_mode: bool = False
+    ) -> Dict[str, str]:
         with open(audio_file_path, "rb") as file:
             files = {"file": file}
-            return self._post("stt", files=files)
+            data = {"srt_mode": str(srt_mode)}
+            return self._post("stt", files=files, data=data)
 
     def text_to_speech(
         self, text: str, clone_audio_file_path: str = None

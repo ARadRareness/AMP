@@ -103,10 +103,15 @@ def generate_response() -> Response:
 
 @app.route("/stt", methods=["POST"])
 def speech_to_text():
-    result, response = ampManager.speech_to_text(request)
-    if not result:
-        return jsonify({"error": response}), 400
-    return Response(response, mimetype="text/plain")
+    try:
+        result, response = ampManager.speech_to_text(request)
+        if not result:
+            print(response)
+            return jsonify({"error": response}), 400
+        return Response(response, mimetype="text/plain")
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/tts", methods=["POST"])
