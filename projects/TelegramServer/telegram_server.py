@@ -1,3 +1,16 @@
+"""
+This project implements a Telegram bot server using the python-telegram-bot library.
+It features:
+- A conversation system using AmpClient for generating responses
+- Example menu navigation with inline buttons
+- Command handlers for /menu and /new (to start a new conversation)
+- Environment variable configuration for bot token and chat ID
+- A system prompt that can be customized and includes the current time
+
+The bot can engage in conversations, provide menu options, and handle user interactions
+through both text messages and button clicks.
+"""
+
 import os
 import uuid
 import datetime
@@ -19,18 +32,6 @@ from telegram.ext import (
 
 from amp_lib import AmpClient
 
-"""
-This project implements a Telegram bot server using the python-telegram-bot library.
-It features:
-- A conversation system using AmpClient for generating responses
-- Example menu navigation with inline buttons
-- Command handlers for /menu and /new (to start a new conversation)
-- Environment variable configuration for bot token and chat ID
-- A system prompt that can be customized and includes the current time
-
-The bot can engage in conversations, provide menu options, and handle user interactions
-through both text messages and button clicks.
-"""
 
 # Load environment variables from .env file
 load_dotenv()

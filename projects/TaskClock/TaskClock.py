@@ -1,11 +1,3 @@
-import tkinter as tk
-from tkinter import messagebox, simpledialog
-import json
-import json
-import os
-
-from amp_lib import AmpClient
-
 """
 TaskClock: A Tkinter-based task management and time tracking application.
 
@@ -20,6 +12,14 @@ This application allows users to:
 The interface provides buttons for task management, timer control, and configuration
 options for notifications and auto-reset functionality.
 """
+
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+import json
+import json
+import os
+
+from amp_lib import AmpClient
 
 
 class TaskClock:

@@ -1,8 +1,3 @@
-import subprocess
-from typing import List, Optional
-from amp_lib import AmpClient  # Ensure amp_lib is installed or provide a stub file
-import uuid
-
 """
 GitAI: An intelligent Git commit message generator
 
@@ -16,6 +11,11 @@ This project provides a tool that analyzes Git diffs and generates suggested com
 
 The main class, GitDiffParser, handles the core functionality, while the main() function provides a simple CLI for interacting with the tool.
 """
+
+import subprocess
+from typing import List, Optional
+from amp_lib import AmpClient
+import uuid
 
 
 class GitDiffParser:
