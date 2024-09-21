@@ -1,11 +1,12 @@
-gguf
-numpy==1.22.0
+#gguf
+#numpy==1.22.0
 
-sentencepiece
+
 
 gradio
 flask
 python-dotenv
+waitress
 
 # Audio text to speech
 TTS
@@ -15,10 +16,11 @@ faster-whisper
 
 # Image generation
 diffusers
-accelerate
+sentencepiece==0.2.0
+# accelerate
 
 # Quantization of Flux model
-optimum-quanto
+optimum-quanto==0.2.4
 
 # Telegram bot support
 python-telegram-bot==13.12

@@ -1,7 +1,7 @@
 import os
 import sys
 import traceback
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from amp.amp_manager.model_unloader import ModelUnloader
 from amp.audio.speech_to_text.whisper_manager import WhisperManager
@@ -9,6 +9,9 @@ from amp.audio.text_to_speech.xtts_manager import XttsManager
 from amp.image.image_generation.flux_manager import FluxManager
 from amp.language_models.model_conversation import ModelConversation
 from amp.language_models.providers.llamacpp.llamacpp_manager import LlamaCppManager
+import uuid
+import time
+import json
 
 
 class AmpManager:
@@ -23,16 +26,16 @@ class AmpManager:
         self.conversations: Dict[str, ModelConversation] = {}
 
         self.llamacpp_unloader = ModelUnloader(
-            func=self.llamacpp_manager.unload_model, unload_timeout=600
+            unload_callback=self.unload_llamacpp_model, unload_timeout=660
         )
         self.whisper_unloader = ModelUnloader(
-            func=lambda: self.whisper_manager.unload_model(), unload_timeout=600
+            unload_callback=self.unload_whisper_model, unload_timeout=600
         )
         self.xtts_unloader = ModelUnloader(
-            func=lambda: self.xtts_manager.unload_model(), unload_timeout=600
+            unload_callback=self.unload_xtts_model, unload_timeout=600
         )
         self.flux_unloader = ModelUnloader(
-            func=lambda: self.flux_manager.unload_model(), unload_timeout=600
+            unload_callback=self.unload_flux_model, unload_timeout=60
         )
 
     def get_available_models(self):
@@ -81,7 +84,6 @@ class AmpManager:
 
     def generate_response(self, data):
         try:
-            # Cancel any existing timer
             self.llamacpp_unloader.cancel_unload_timer()
 
             conversation_id = data.get("conversation_id")
@@ -112,7 +114,6 @@ class AmpManager:
                 response_prefix=response_prefix,
             )
 
-            # Set a new timer after generating the response
             self.llamacpp_unloader.set_unload_timer()
 
             return True, response
@@ -264,14 +265,12 @@ class AmpManager:
 
     def generate_image(self, prompt, width, height, guidance_scale=None, seed=None):
         try:
-            # Cancel any existing timer
             self.flux_unloader.cancel_unload_timer()
 
             image = self.flux_manager.generate_image(
                 prompt, width, height, guidance_scale, seed
             )
 
-            # Set a new timer after generating the image
             self.flux_unloader.set_unload_timer()
 
             return True, image
@@ -279,3 +278,125 @@ class AmpManager:
         except Exception as e:
             traceback.print_exc()
             return False, str(e)
+
+    def chat_completions(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """
+        Handles chat completions in an OpenAI-compatible manner with support for multiple messages.
+        Creates a new conversation each time the method is called.
+        """
+        try:
+            self.llamacpp_unloader.cancel_unload_timer()
+
+            if not data:
+                return False, {"error": "Invalid JSON payload"}
+
+            requested_model = data.get("model")
+            default_model = self.get_default_model()
+
+            # Determine the model to use
+            if (
+                requested_model
+                and requested_model in self.llamacpp_manager.get_available_models()
+            ):
+                model_path = requested_model
+            else:
+                model_path = default_model
+                if requested_model:
+                    # Log or notify that the requested model wasn't found
+                    print(
+                        f"Requested model '{requested_model}' not found. Falling back to default model '{default_model}'."
+                    )
+
+            messages = data.get("messages", [])
+            max_tokens = data.get("max_tokens", 512)
+            temperature = data.get("temperature", 0.7)
+            stream = data.get("stream", False)
+
+            # Initialize a new conversation with the selected model
+            conversation = ModelConversation(model_path)
+
+            # Add incoming messages to the conversation
+            for msg in messages:
+                role = msg.get("role")
+                content = msg.get("content", "").strip()
+                if role and content:
+                    if role.lower() == "user":
+                        conversation.add_user_message(content)
+                    elif role.lower() == "assistant":
+                        conversation.add_assistant_message(content)
+                    elif role.lower() == "system":
+                        conversation.add_system_message(content)
+
+            self.llamacpp_manager.change_model(model_path)
+
+            # Generate a response using the conversation history
+            response_text = conversation.generate_message(
+                model=self.llamacpp_manager.active_models[0],
+                max_tokens=max_tokens,
+                single_message_mode=False,  # Support multiple messages
+                response_prefix="",
+            )
+
+            # Optionally handle streaming responses
+            if stream:
+                # TODO: Implement real streaming
+                def _resp_generator(resp_content: str):
+                    tokens = resp_content.split(" ")
+                    for token in tokens:
+                        chunk = {
+                            "id": str(uuid.uuid4()),
+                            "object": "chat.completion.chunk",
+                            "created": int(time.time()),
+                            "model": model_path,
+                            "choices": [{"delta": {"content": token + " "}}],
+                        }
+                        yield f"data: {json.dumps(chunk)}\n\n"
+                        time.sleep(0.5)  # Adjust sleep for desired streaming speed
+                    yield "data: [DONE]\n\n"
+
+                return True, _resp_generator(response_text)
+
+            # Construct the OpenAI-compatible response
+            response = {
+                "id": str(uuid.uuid4()),
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": model_path,
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": response_text},
+                        "finish_reason": "stop",
+                        "index": 0,
+                    }
+                ],
+                # TODO: Implement correct token counting
+                "usage": {
+                    "prompt_tokens": sum(
+                        len(msg.get("content", "").split()) for msg in messages
+                    ),
+                    "completion_tokens": len(response_text.split()),
+                    "total_tokens": sum(
+                        len(msg.get("content", "").split()) for msg in messages
+                    )
+                    + len(response_text.split()),
+                },
+            }
+            self.llamacpp_unloader.set_unload_timer()
+
+            return True, response
+
+        except Exception as e:
+            traceback.print_exc()
+            return False, {"error": str(e)}
+
+    def unload_llamacpp_model(self):
+        self.llamacpp_manager.unload_model()
+
+    def unload_whisper_model(self):
+        self.whisper_manager.unload_model()
+
+    def unload_xtts_model(self):
+        self.xtts_manager.unload_model()
+
+    def unload_flux_model(self):
+        self.flux_manager.unload_model()

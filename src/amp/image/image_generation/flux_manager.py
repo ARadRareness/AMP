@@ -1,4 +1,5 @@
 import os
+import random
 import torch
 
 from diffusers import FlowMatchEulerDiscreteScheduler, AutoencoderKL
@@ -81,6 +82,8 @@ class FluxManager:
         generator = torch.Generator(device=device)  # .manual_seed(123456)
         if seed is not None:
             generator.manual_seed(seed)
+        else:
+            generator.manual_seed(random.randint(0, 2**32 - 1))
 
         if guidance_scale is None:
             guidance_scale = 3.5
