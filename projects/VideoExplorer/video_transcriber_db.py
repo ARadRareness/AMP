@@ -40,7 +40,7 @@ def get_video_length(file_path):
 
 
 def get_video_summary(amp_client, video_name, transcription):
-    conversation_id = str(uuid.uuid4())
+    conversation_id = "VideoTranscriber_" + str(uuid.uuid4())
     prompt = f"""Please provide a concise summary of the following video transcription. The summary should:
 1. Be around 3-5 sentences long
 2. Capture the main topics or themes discussed
@@ -55,7 +55,7 @@ Transcription:
 
 Summary:"""
 
-    summary = amp_client.generate_response(conversation_id, prompt)
+    summary = amp_client.generate_response(conversation_id, prompt, max_tokens=5000)
     return summary
 
 
