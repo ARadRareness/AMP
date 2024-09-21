@@ -66,7 +66,7 @@ class AmpClient:
         self,
         conversation_id: str,
         message: str,
-        max_tokens: int = None,
+        max_tokens: int = 2000,
         single_message_mode: bool = False,
         response_prefix: str = "",
     ) -> str:

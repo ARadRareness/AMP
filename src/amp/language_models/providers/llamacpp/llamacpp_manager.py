@@ -1,6 +1,8 @@
+import atexit
 import os
 import subprocess
 from typing import List
+import logging
 
 from amp.language_models.api_model import ApiModel
 from amp.language_models.prompt_formatter import PromptFormatter
@@ -9,12 +11,16 @@ from amp.language_models.providers.llamacpp.formatters.mistral import MistralFor
 from amp.language_models.providers.llamacpp.llamacpp_model import LlamaCppModel
 
 
+logger = logging.getLogger(__name__)
+
+
 class LlamaCppManager:
     def __init__(self, llama_cpp_path: str, start_port: int):
         self.llama_cpp_path = llama_cpp_path
         self.start_port = start_port
         self.popen = None
         self.active_models: List[ApiModel] = []
+        atexit.register(self.cleanup)
 
     def model_is_loaded(self) -> bool:
         return self.popen != None
@@ -22,95 +28,111 @@ class LlamaCppManager:
     def load_model(
         self, model_index: int = -1, gpu_layers: int = -1, context_window_size: int = -1
     ) -> None:
-        if model_index == -1:
-            last_model_used = os.getenv("MODEL.LAST_USED", "")
+        try:
+            logger.debug("Starting model load process")
+            if model_index == -1:
+                last_model_used = os.getenv("MODEL.LAST_USED", "")
+                available_models = self.get_available_models()
+                try:
+                    model_index = available_models.index(last_model_used)
+                except ValueError:
+                    model_index = (
+                        0  # Default to the first model if last_model_used is not found
+                    )
+
+            if self.popen:
+                # Terminate the existing process
+                self.popen.terminate()
+                self.active_models.pop()
+
             available_models = self.get_available_models()
-            try:
-                model_index = available_models.index(last_model_used)
-            except ValueError:
-                model_index = (
-                    0  # Default to the first model if last_model_used is not found
+
+            model_identifier = available_models[model_index]
+
+            print("STARTING MODEL LOAD")
+            # Load a local model
+            model_path = os.path.join("models", model_identifier)
+            # print("PROMPT FORMAT:", self.read_prompt_format(model_path))
+
+            print(self.llama_cpp_path)
+
+            if gpu_layers == -1:
+                gpu_layers = int(os.getenv("LLAMACPP.GPU_LAYERS", 9001))
+
+            if context_window_size == -1:
+                context_window_size = int(
+                    os.getenv("LLAMACPP.CONTEXT_WINDOW_SIZE", 8192)
                 )
 
-        if self.popen:
-            # Terminate the existing process
-            self.popen.terminate()
-            self.active_models.pop()
+            repeat_penalty = os.getenv("LLAMACPP.REPEAT_PENALTY", 1.1)
 
-        available_models = self.get_available_models()
-
-        model_identifier = available_models[model_index]
-
-        print("STARTING MODEL LOAD")
-        # Load a local model
-        model_path = os.path.join("models", model_identifier)
-        # print("PROMPT FORMAT:", self.read_prompt_format(model_path))
-
-        print(self.llama_cpp_path)
-
-        if gpu_layers == -1:
-            gpu_layers = int(os.getenv("LLAMACPP.GPU_LAYERS", 9001))
-
-        if context_window_size == -1:
-            context_window_size = int(os.getenv("LLAMACPP.CONTEXT_WINDOW_SIZE", 8192))
-
-        repeat_penalty = os.getenv("LLAMACPP.REPEAT_PENALTY", 1.1)
-
-        # Start a new child process with the llama cpp path and the model path as arguments
-        self.popen = subprocess.Popen(
-            [
-                self.llama_cpp_path,
-                "--n-gpu-layers",
-                str(gpu_layers),
-                "--ctx-size",
-                str(context_window_size),
-                "--port",
-                str(self.start_port),
-                "-m",
-                model_path,
-                "--repeat-penalty",
-                str(repeat_penalty),
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            universal_newlines=True,
-        )
-
-        while True:
-            if self.popen.stdout:
-                try:
-                    line = self.popen.stdout.readline()
-                    print(line, end="")
-                    if "llama_new_context_with_model: graph splits" in line:
-                        break
-                except Exception as e:
-                    print(e)
-                    break
-
-            else:
-                return
-
-        # Close the stdout pipe after the while loop to allow normal process output
-        if self.popen.stdout:
-            self.popen.stdout.close()
-
-        prompt_formatter = self.get_prompt_formatter(model_identifier)
-        self.active_models.append(
-            LlamaCppModel(
-                "127.0.0.1",
-                str(self.start_port),
-                prompt_formatter,
-                model_identifier,
+            # Start a new child process with the llama cpp path and the model path as arguments
+            self.popen = subprocess.Popen(
+                [
+                    self.llama_cpp_path,
+                    "--n-gpu-layers",
+                    str(gpu_layers),
+                    "--ctx-size",
+                    str(context_window_size),
+                    "--port",
+                    str(self.start_port),
+                    "-m",
+                    model_path,
+                    "--repeat-penalty",
+                    str(repeat_penalty),
+                    "--predict",
+                    "-2",  # Only predict up to context window size
+                    "-fa",  # FLASH ATTENTION
+                    "--no-perf",  # No performance metrics
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
             )
-        )
+
+            while True:
+                if self.popen.stdout:
+                    try:
+                        line = self.popen.stdout.readline()
+                        print(line, end="")
+
+                        if "all slots are idle" in line:
+                            break
+
+                    except Exception as e:
+                        print(e)
+                        break
+
+                else:
+                    return
+
+            # Close the stdout pipe after the while loop to allow normal process output
+            if self.popen.stdout:
+                self.popen.stdout.close()
+
+            prompt_formatter = self.get_prompt_formatter(model_identifier)
+            self.active_models.append(
+                LlamaCppModel(
+                    "127.0.0.1",
+                    str(self.start_port),
+                    prompt_formatter,
+                    model_identifier,
+                )
+            )
+            logger.debug("Model loaded successfully")
+        except Exception as e:
+            logger.exception("Exception during load_model")
+            raise
 
     def unload_model(self) -> None:
         if self.popen:
+            logger.debug("Terminating llama.cpp subprocess")
             self.popen.terminate()
             self.popen = None
         if self.active_models:
+            logger.debug("Clearing active models")
             self.active_models.clear()
 
     def read_prompt_format(self, model_path: str) -> str:
@@ -159,3 +181,7 @@ class LlamaCppManager:
         if self.popen:
             self.popen.kill()
             self.popen = None
+
+    def cleanup(self):
+        logger.info("Cleaning up LlamaCppManager")
+        self.unload_model()

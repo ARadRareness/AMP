@@ -1,3 +1,4 @@
+import logging
 from typing import Sequence
 import requests
 import json
@@ -5,6 +6,8 @@ from amp.language_models.api_model import ApiModel
 from amp.language_models.model_message import ModelMessage
 from amp.language_models.model_response import ModelResponse
 from amp.language_models.prompt_formatter import PromptFormatter
+
+logger = logging.getLogger(__name__)
 
 
 class LlamaCppModel(ApiModel):
@@ -48,7 +51,9 @@ class LlamaCppModel(ApiModel):
 
         url = f"http://{self.host_url}:{self.host_port}/completion"
 
+        logger.info("LLAMA-CPP: GENERATING RESPONSE")
         response = requests.post(url, json=request)
+        logger.info("LLAMA-CPP: RESPONSE GENERATED")
 
         with open("_output.json", "w") as file:
             json.dump(response.json(), file)
