@@ -15,7 +15,6 @@ def create_interface():
         gr.Markdown("# Model information")
 
         create_llamacpp_interface()
-        create_whisper_interface()
         create_xtts_interface()
         create_flux_interface()
 
@@ -44,28 +43,6 @@ def create_llamacpp_interface():
     )
 
     return current_llamacpp_model
-
-
-def create_whisper_interface():
-    whisper_model_loaded = gr.Textbox(
-        label="Whisper",
-        value=lambda: get_is_whisper_model_loaded(),
-        interactive=False,
-    )
-
-    unload_whisper_model_button = gr.Button("Unload Whisper Model")
-    unload_whisper_model_button.click(
-        fn=unload_whisper_model, inputs=[], outputs=[whisper_model_loaded]
-    )
-
-    timer_update_whisper_model = gr.Timer(value=5)
-    timer_update_whisper_model.tick(
-        fn=get_is_whisper_model_loaded,
-        inputs=[],
-        outputs=[whisper_model_loaded],
-    )
-
-    return whisper_model_loaded
 
 
 def create_xtts_interface():
@@ -126,20 +103,6 @@ def unload_llamacpp_model():
     if amp_manager.llamacpp_manager.active_models:
         amp_manager.llamacpp_manager.unload_model()
     return "No model loaded"
-
-
-def get_is_whisper_model_loaded():
-    if amp_manager:
-        return (
-            "Loaded" if amp_manager.whisper_manager.model_is_loaded() else "Not loaded"
-        )
-    return "Not loaded"
-
-
-def unload_whisper_model():
-    if amp_manager.whisper_manager.model_is_loaded():
-        amp_manager.whisper_manager.unload_model()
-    return "Not loaded"
 
 
 def get_is_xtts_model_loaded():

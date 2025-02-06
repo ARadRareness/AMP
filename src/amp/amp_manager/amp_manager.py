@@ -1,7 +1,7 @@
 import os
 import sys
 import traceback
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 from amp.amp_manager.model_unloader import ModelUnloader
 from amp.audio.speech_to_text.whisper_manager import WhisperManager
@@ -26,13 +26,10 @@ class AmpManager:
         self.conversations: Dict[str, ModelConversation] = {}
 
         self.llamacpp_unloader = ModelUnloader(
-            unload_callback=self.unload_llamacpp_model, unload_timeout=660
-        )
-        self.whisper_unloader = ModelUnloader(
-            unload_callback=self.unload_whisper_model, unload_timeout=600
+            unload_callback=self.unload_llamacpp_model, unload_timeout=120
         )
         self.xtts_unloader = ModelUnloader(
-            unload_callback=self.unload_xtts_model, unload_timeout=600
+            unload_callback=self.unload_xtts_model, unload_timeout=120
         )
         self.flux_unloader = ModelUnloader(
             unload_callback=self.unload_flux_model, unload_timeout=60
@@ -88,24 +85,40 @@ class AmpManager:
 
             conversation_id = data.get("conversation_id")
             user_message = data.get("message")
-            max_tokens = data.get("max_tokens")
+            max_tokens = data.get("max_tokens", 8192)
             single_message_mode = data.get("single_message_mode")
             response_prefix = data.get("response_prefix", "")
+
+            requested_model = data.get("model", "")
+            default_model = self.get_default_model()
+
+            model_path = default_model
+
+            if (
+                requested_model
+                and requested_model in self.llamacpp_manager.get_available_models()
+            ):
+                model_path = requested_model
+            elif requested_model:
+                print(
+                    f"Requested model '{requested_model}' not found. Falling back to default model '{default_model}'."
+                )
 
             conversation_id, user_message = self.validate_conversation_id_and_message(
                 conversation_id, user_message
             )
 
             if conversation_id not in self.conversations:
-                self.conversations[conversation_id] = ModelConversation(
-                    self.get_default_model()
-                )
+                self.conversations[conversation_id] = ModelConversation(model_path)
 
             self.conversations[conversation_id].add_user_message(user_message)
 
             model_path = self.conversations[conversation_id].get_model_path()
 
-            self.llamacpp_manager.change_model(model_path)  # TODO: Improve this
+            self.llamacpp_manager.change_model(
+                model_path,
+                context_window_size=max_tokens,
+            )
 
             response = self.conversations[conversation_id].generate_message(
                 self.llamacpp_manager.active_models[0],
@@ -230,15 +243,12 @@ class AmpManager:
         if not self._allowed_file(file.filename):
             return False, {"error_message": "Invalid file type"}
         if file:
-            self.whisper_unloader.cancel_unload_timer()
 
             audio_content: str = file.read()
             srt_mode = request.form.get("srt_mode", "false").lower() == "true"
             transcript = self.whisper_manager.transcribe(
                 audio_content, srt_mode=srt_mode
             )
-
-            self.whisper_unloader.set_unload_timer()
 
             return True, transcript
 
@@ -279,6 +289,18 @@ class AmpManager:
             traceback.print_exc()
             return False, str(e)
 
+    def _get_message_content(self, message: Dict[str, Any]) -> str:
+        """Helper method to extract content from a message, handling both string and list formats."""
+        content = message.get("content", "")
+        if isinstance(content, list):
+            # Handle list-type content by extracting text from the first item
+            content = content[0].get("text", "")
+        return content.strip()
+
+    def _count_message_tokens(self, messages: List[Dict[str, Any]]) -> int:
+        """Helper method to count tokens in messages, handling different content formats."""
+        return sum(len(self._get_message_content(msg).split()) for msg in messages)
+
     def chat_completions(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
         """
         Handles chat completions in an OpenAI-compatible manner with support for multiple messages.
@@ -309,7 +331,7 @@ class AmpManager:
 
             messages = data.get("messages", [])
             max_tokens = data.get("max_tokens", 512)
-            temperature = data.get("temperature", 0.7)
+            temperature = data.get("temperature", 0.2)
             stream = data.get("stream", False)
 
             # Initialize a new conversation with the selected model
@@ -318,7 +340,7 @@ class AmpManager:
             # Add incoming messages to the conversation
             for msg in messages:
                 role = msg.get("role")
-                content = msg.get("content", "").strip()
+                content = self._get_message_content(msg)
                 if role and content:
                     if role.lower() == "user":
                         conversation.add_user_message(content)
@@ -334,6 +356,7 @@ class AmpManager:
                 model=self.llamacpp_manager.active_models[0],
                 max_tokens=max_tokens,
                 single_message_mode=False,  # Support multiple messages
+                temperature=temperature,
                 response_prefix="",
             )
 
@@ -351,12 +374,16 @@ class AmpManager:
                             "choices": [{"delta": {"content": token + " "}}],
                         }
                         yield f"data: {json.dumps(chunk)}\n\n"
-                        time.sleep(0.5)  # Adjust sleep for desired streaming speed
+                        # time.sleep(0.5)  # Adjust sleep for desired streaming speed
                     yield "data: [DONE]\n\n"
 
                 return True, _resp_generator(response_text)
 
-            # Construct the OpenAI-compatible response
+            # Calculate token counts using helper method
+            # TODO: Implement correct token counting
+            prompt_tokens = self._count_message_tokens(messages)
+            completion_tokens = len(response_text.split())
+
             response = {
                 "id": str(uuid.uuid4()),
                 "object": "chat.completion",
@@ -369,16 +396,10 @@ class AmpManager:
                         "index": 0,
                     }
                 ],
-                # TODO: Implement correct token counting
                 "usage": {
-                    "prompt_tokens": sum(
-                        len(msg.get("content", "").split()) for msg in messages
-                    ),
-                    "completion_tokens": len(response_text.split()),
-                    "total_tokens": sum(
-                        len(msg.get("content", "").split()) for msg in messages
-                    )
-                    + len(response_text.split()),
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": prompt_tokens + completion_tokens,
                 },
             }
             self.llamacpp_unloader.set_unload_timer()
@@ -392,11 +413,15 @@ class AmpManager:
     def unload_llamacpp_model(self):
         self.llamacpp_manager.unload_model()
 
-    def unload_whisper_model(self):
-        self.whisper_manager.unload_model()
-
     def unload_xtts_model(self):
         self.xtts_manager.unload_model()
 
     def unload_flux_model(self):
         self.flux_manager.unload_model()
+
+    def unload_models(self):
+        self.unload_llamacpp_model()
+        self.unload_xtts_model()
+        self.unload_flux_model()
+
+        return True, "Models successfully unloaded"
