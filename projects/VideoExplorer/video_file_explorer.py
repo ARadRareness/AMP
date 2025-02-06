@@ -7,9 +7,10 @@ import re
 from amp_lib.amp_lib import AmpClient
 import uuid
 import threading
-import os
-import subprocess
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
+from datetime import datetime, timedelta
+from video_explorer_mcp import run_in_thread, mcp
+import math
 
 
 class VideoFileExplorer:
@@ -20,6 +21,28 @@ class VideoFileExplorer:
 
         # Load environment variables
         load_dotenv()
+
+        # Load last download time and deletion stats from .env
+        last_download_str = os.getenv("LAST_DOWNLOAD_START_TIME")
+        self.deletion_count = int(os.getenv("DELETION_COUNT", "0"))
+        self.deletion_date = os.getenv("DELETION_DATE")
+
+        # Reset deletion count if it's a new day
+        today = datetime.now().strftime("%Y-%m-%d")
+        if self.deletion_date != today:
+            self.deletion_count = 0
+            self.deletion_date = today
+            self.update_deletion_stats()
+
+        if last_download_str:
+            try:
+                self.last_download_start_time = datetime.strptime(
+                    last_download_str, "%Y-%m-%d %H:%M:%S"
+                )
+            except ValueError:
+                self.last_download_start_time = None
+        else:
+            self.last_download_start_time = None
 
         # Get the directory of the current script
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +68,22 @@ class VideoFileExplorer:
             label="Transcribe videos",
             variable=self.transcribe_var,
             command=self.toggle_transcribe,
+        )
+
+        # Add Auto-download toggle
+        self.auto_download_var = tk.BooleanVar(value=True)
+        self.options_menu.add_checkbutton(
+            label="Automatically download videos in the morning",
+            variable=self.auto_download_var,
+            command=self.toggle_auto_download,
+        )
+
+        # Add Show delete target toggle
+        self.show_target_var = tk.BooleanVar(value=False)
+        self.options_menu.add_checkbutton(
+            label="Show delete target",
+            variable=self.show_target_var,
+            command=self.update_window_title,
         )
 
         # Create main frame
@@ -158,7 +197,24 @@ class VideoFileExplorer:
         self.transcriber_process = None
         self.toggle_transcribe()  # Initialize the transcriber based on the initial state
 
+        self.auto_download_job = None
+        self.toggle_auto_download()  # Initialize auto-download based on initial state
+
+        # Start MCP server in its own thread
+        self.mcp_thread = run_in_thread(self)
+
     def start_video_downloader(self):
+        # Update the last download start time
+        self.last_download_start_time = datetime.now()
+
+        # Save to .env file
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+        set_key(
+            env_path,
+            "LAST_DOWNLOAD_START_TIME",
+            self.last_download_start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
         # Get the start folder and script path from environment variables
         start_folder = os.getenv("VIDEO_DOWNLOADER_START_FOLDER")
         script_path = os.getenv("VIDEO_DOWNLOADER_SCRIPT_PATH")
@@ -228,13 +284,17 @@ class VideoFileExplorer:
             )
 
     def stop_transcriber(self):
-        if self.transcriber_process and self.transcriber_process.poll() is None:
-            self.transcriber_process.terminate()
-            self.transcriber_process.wait()
+        # if has attribute transcriber_process
+        if hasattr(self, "transcriber_process"):
+            if self.transcriber_process and self.transcriber_process.poll() is None:
+                self.transcriber_process.terminate()
+                self.transcriber_process.wait()
         self.transcriber_process = None
 
     def __del__(self):
-        self.stop_transcriber()  # Ensure the transcriber is stopped when the app is closed
+        self.stop_transcriber()
+        if self.auto_download_job:
+            self.root.after_cancel(self.auto_download_job)
 
     def reload_database(self):
         self.load_videos()
@@ -386,6 +446,9 @@ class VideoFileExplorer:
             self.context_menu.add_command(
                 label="Show summary", command=self.summarize_video
             )
+
+            # Add "Hide" option
+            self.context_menu.add_command(label="Hide", command=self.hide_video)
 
             # Add "Delete" option
             self.context_menu.add_command(label="Delete", command=self.delete_video)
@@ -641,7 +704,12 @@ Transcription:
 
 Summary:"""
 
-        summary = self.amp_client.generate_response(conversation_id, prompt)
+        summary = self.amp_client.generate_response(
+            conversation_id,
+            prompt,
+            max_tokens=90000,
+            model=os.getenv("DEFAULT_MODEL", ""),
+        )
         return summary
 
     def show_summary_popup(self, video_name, summary, loading_popup=None):
@@ -684,6 +752,15 @@ Summary:"""
                 # Remove the file from the filesystem
                 os.remove(video_path)
 
+                # Update deletion count
+                today = datetime.now().strftime("%Y-%m-%d")
+                if self.deletion_date != today:
+                    self.deletion_count = 1
+                    self.deletion_date = today
+                else:
+                    self.deletion_count += 1
+                self.update_deletion_stats()
+
                 # Remove the video from the all_videos list
                 self.all_videos = [
                     video for video in self.all_videos if video[0] != video_name
@@ -696,6 +773,147 @@ Summary:"""
                 messagebox.showerror(
                     "Error", f"Failed to delete '{video_name}': {str(e)}"
                 )
+
+    def hide_video(self):
+        item = self.tree.selection()[0]
+        video_name = self.tree.item(item, "values")[0]
+        source_path = os.path.join(self.tree.item(item, "values")[1], video_name)
+
+        # Get hide folder from environment variables
+        hide_folder = os.getenv("HIDE_FOLDER")
+        if not hide_folder:
+            messagebox.showerror(
+                "Error", "HIDE_FOLDER not set in environment variables"
+            )
+            return
+
+        # Create hide folder if it doesn't exist
+        if not os.path.exists(hide_folder):
+            os.makedirs(hide_folder)
+
+        try:
+            # Move the file to hide folder
+            dest_path = os.path.join(hide_folder, video_name)
+            os.rename(source_path, dest_path)
+
+            # Update deletion count
+            today = datetime.now().strftime("%Y-%m-%d")
+            if self.deletion_date != today:
+                self.deletion_count = 1
+                self.deletion_date = today
+            else:
+                self.deletion_count += 1
+            self.update_deletion_stats()
+
+            # Update database to mark as removed
+            conn = sqlite3.connect(self.db_path)
+            c = conn.cursor()
+            c.execute(
+                "UPDATE transcriptions SET removed = 1 WHERE name = ?", (video_name,)
+            )
+            conn.commit()
+            conn.close()
+
+            # Remove from all_videos list
+            self.all_videos = [
+                video for video in self.all_videos if video[0] != video_name
+            ]
+
+            # Remove from treeview
+            self.tree.delete(item)
+
+        except OSError as e:
+            messagebox.showerror("Error", f"Failed to hide '{video_name}': {str(e)}")
+
+    def toggle_auto_download(self):
+        is_on = self.auto_download_var.get()
+        if is_on:
+            self.schedule_next_download()
+        else:
+            if self.auto_download_job:
+                self.root.after_cancel(self.auto_download_job)
+                self.auto_download_job = None
+
+    def schedule_next_download(self):
+        now = datetime.now()
+        target_time = now.replace(hour=6, minute=0, second=0, microsecond=0)
+
+        # If it's already past 6 AM, schedule for tomorrow
+        if now >= target_time:
+            target_time += timedelta(days=1)
+
+        # Calculate milliseconds until next run
+        delay = int((target_time - now).total_seconds() * 1000)
+        # Schedule the download
+        self.auto_download_job = self.root.after(delay, self.run_scheduled_download)
+
+    def run_scheduled_download(self):
+        print("RUNNING SCHEDULED DOWNLOAD")
+        # Run the download
+        self.start_video_downloader()
+        # Schedule the next download
+        self.schedule_next_download()
+
+    def get_last_download_start_time(self) -> str:
+        """Return the timestamp of when downloads were last started"""
+        if self.last_download_start_time is None:
+            return "Never"
+        return self.last_download_start_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    def get_latest_downloaded_videos(
+        self, limit: int = 10, include_summaries: bool = False
+    ) -> list[dict]:
+        """Get the latest downloaded videos, sorted by last_changed time
+        Args:
+            limit: Maximum number of videos to return (capped at 100)
+            include_summaries: Whether to include video summaries
+        Returns:
+            List of dicts containing video info
+        """
+        # Cap the limit at 100
+        limit = min(limit, 100)
+
+        # Get videos sorted by last_changed
+        sorted_videos = sorted(
+            self.all_videos,
+            key=lambda x: x[3],  # index 3 is last_changed
+            reverse=True,  # Most recent first
+        )[:limit]
+
+        result = []
+        for video in sorted_videos:
+            name, path, length, last_changed, transcription, summary, liked = video
+            video_info = {
+                "name": name,
+                "last_changed": last_changed,
+                "length": self.format_length(length),
+            }
+            if include_summaries:
+                video_info["summary"] = summary
+            result.append(video_info)
+
+        return result
+
+    def show_window(self):
+        self.root.attributes("-topmost", True)
+        self.root.state("normal")
+        self.root.attributes("-topmost", False)
+
+    def update_deletion_stats(self):
+        """Update deletion count and date in .env file"""
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+        set_key(env_path, "DELETION_COUNT", str(self.deletion_count))
+        set_key(env_path, "DELETION_DATE", self.deletion_date)
+        self.update_window_title()
+
+    def update_window_title(self):
+        """Update window title with deletion target if enabled"""
+        if self.show_target_var.get():
+            total_videos = len(self.all_videos)
+            target = math.ceil(total_videos / 50)
+            self.root.title(f"Video File Explorer ({self.deletion_count}/{target})")
+        else:
+            self.root.title("Video File Explorer")
 
 
 if __name__ == "__main__":

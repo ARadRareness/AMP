@@ -8,6 +8,10 @@ import uuid
 from dotenv import load_dotenv
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import threading
+
+
+transcription_lock = threading.Lock()
 
 
 def create_database():
@@ -36,7 +40,7 @@ def get_video_length(file_path):
         return length
     except Exception as e:
         print(f"Error getting video length for {file_path}: {e}")
-        return None
+        return 0
 
 
 def get_video_summary(amp_client, video_name, transcription):
@@ -55,7 +59,9 @@ Transcription:
 
 Summary:"""
 
-    summary = amp_client.generate_response(conversation_id, prompt, max_tokens=5000)
+    summary = amp_client.generate_response(
+        conversation_id, prompt, max_tokens=90000, model=os.getenv("DEFAULT_MODEL", "")
+    )
     return summary
 
 
@@ -74,6 +80,19 @@ class VideoHandler(FileSystemEventHandler):
             self.process_video(event.src_path)
 
     def process_video(self, file_path):
+        for i in range(10):
+            try:
+                self.process_video_helper(file_path)
+                break
+            except Exception as e:
+                print(f"Error processing video {file_path}: {e}")
+                if i == 9:
+                    raise
+                sleep_time = 1
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+
+    def process_video_helper(self, file_path):
         conn = sqlite3.connect("video_transcriptions.db")
         c = conn.cursor()
 
@@ -82,8 +101,10 @@ class VideoHandler(FileSystemEventHandler):
         video_length = get_video_length(file_path)
 
         print(f"Processing: {file_path}")
-        transcription = self.amp_client.speech_to_text(file_path, srt_mode=False)
-        summary = get_video_summary(self.amp_client, file_name, transcription)
+        with transcription_lock:
+            self.amp_client.unload_models()
+            transcription = self.amp_client.speech_to_text(file_path, srt_mode=False)
+            summary = get_video_summary(self.amp_client, file_name, transcription)
 
         if transcription:
             c.execute(
@@ -138,6 +159,22 @@ def remove_all_summaries(contains):
     conn.close()
 
 
+def generate_transcript(file_path, amp_client):
+    tries = 10
+    for i in range(tries):
+        try:
+            transcription = amp_client.speech_to_text(file_path, srt_mode=False)
+            return transcription
+        except Exception as e:
+            print(f"Error generating transcript for {file_path}: {e}")
+            if i == tries - 1:
+                raise
+            sleep_time = min(60, 2**i)  # Exponential backoff, capped at 60 seconds
+            print(f"Retrying in {sleep_time} seconds...")
+            time.sleep(sleep_time)
+    return None
+
+
 def process_videos():
     amp_client = AmpClient()
     conn = sqlite3.connect("video_transcriptions.db")
@@ -145,7 +182,85 @@ def process_videos():
 
     start_folder = os.getenv("START_FOLDER", "C:\\")
 
+    # Get all MP4 files first
+    mp4_files = list(get_mp4_files(start_folder))
+
+    # Batch fetch all existing records
+    c.execute(
+        "SELECT path, last_changed FROM transcriptions WHERE path IN ({})".format(
+            ",".join("?" * len(mp4_files))
+        ),
+        mp4_files,
+    )
+    db_records = dict(c.fetchall())
+
+    print(f"Found {len(db_records)} records in the database")
+
+    # Process files
+    for file_path in mp4_files:
+        if not os.path.exists(file_path):
+            continue
+
+        file_name = os.path.basename(file_path)
+        last_changed = datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
+
+        # Check if file needs processing using the pre-fetched records
+        if file_path not in db_records or db_records[file_path] != last_changed:
+            print(f"Processing: {file_path}")
+            video_length = get_video_length(file_path)
+
+            with transcription_lock:
+                amp_client.unload_models()
+                transcription = generate_transcript(file_path, amp_client)
+                if transcription is None:
+                    continue
+                else:
+                    summary = get_video_summary(amp_client, file_name, transcription)
+
+            c.execute(
+                """INSERT OR REPLACE INTO transcriptions 
+                        (name, path, last_changed, transcription, summary, removed, length, liked) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 0)""",
+                (
+                    file_name,
+                    file_path,
+                    last_changed,
+                    transcription,
+                    summary,
+                    False,
+                    video_length,
+                ),
+            )
+            conn.commit()
+
+    # Check for removed files
+    c.execute("SELECT path FROM transcriptions")
+    all_paths = c.fetchall()
+
+    for (path,) in all_paths:
+        if not os.path.exists(path):
+            c.execute(
+                "UPDATE transcriptions SET removed = ? WHERE path = ?", (True, path)
+            )
+        else:
+            c.execute(
+                "UPDATE transcriptions SET removed = ? WHERE path = ?", (False, path)
+            )
+
+    conn.commit()
+    conn.close()
+
+
+def process_videos_old():
+    amp_client = AmpClient()
+    conn = sqlite3.connect("video_transcriptions.db")
+    c = conn.cursor()
+
+    start_folder = os.getenv("START_FOLDER", "C:\\")
+
     for file_path in get_mp4_files(start_folder):
+        if not os.path.exists(file_path):
+            continue
         file_name = os.path.basename(file_path)
         last_changed = datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
         video_length = get_video_length(file_path)
@@ -157,8 +272,12 @@ def process_videos():
 
         if result is None or result[0] != last_changed:
             print(f"Processing: {file_path}")
-            transcription = amp_client.speech_to_text(file_path, srt_mode=False)
-            summary = get_video_summary(amp_client, file_name, transcription)
+            with transcription_lock:
+                amp_client.unload_models()
+                transcription = generate_transcript(file_path, amp_client)
+                if transcription is None:
+                    continue
+                summary = get_video_summary(amp_client, file_name, transcription)
 
             if transcription:
                 c.execute(
