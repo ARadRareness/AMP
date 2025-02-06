@@ -1,8 +1,6 @@
 #gguf
 #numpy==1.22.0
 
-
-
 gradio
 flask
 python-dotenv
@@ -24,3 +22,5 @@ optimum-quanto==0.2.4
 
 # Telegram bot support
 python-telegram-bot==13.12
+
+fastmcp-http

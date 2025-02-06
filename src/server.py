@@ -14,10 +14,13 @@ import signal
 import shutil
 from dotenv import load_dotenv
 from amp.amp_manager.amp_manager import AmpManager
+from amp.addons.summarization.summarization import register_summarization_routes
 from messaging.telegram_manager import TelegramManager
 from web_management.gradio_interface_greeting import (
     get_current_name,
 )
+
+from server_mcp import run_in_thread
 
 from web_management.gradio_interface import (
     run_gradio,
@@ -107,6 +110,26 @@ def get_available_models():
     result, response = ampManager.get_available_models()
     if not result:
         return jsonify({"error": response}), 400
+    return jsonify(response)
+
+
+import time
+
+
+@app.route("/models")
+def get_models():
+    success, models = ampManager.get_available_models()
+    if not success:
+        return jsonify({"error": "Failed to retrieve models"}), 500
+
+    current_time = int(time.time())
+    model_data = [
+        {"id": model, "object": "model", "created": current_time, "owned_by": "system"}
+        for model in models
+    ]
+
+    response = {"object": "list", "data": model_data}
+
     return jsonify(response)
 
 
@@ -321,6 +344,18 @@ def transcribe_audio():
 import struct
 
 
+@app.route("/models/unload", methods=["GET"])
+def unload_models():
+    try:
+        result, response = ampManager.unload_models()
+        if not result:
+            return jsonify({"error": response}), 400
+        return jsonify({"message": "Models successfully unloaded"}), 200
+    except Exception as e:
+        logger.exception("Error in /models/unload endpoint")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/audio/speech", methods=["POST"])
 def text_to_speech():
     try:
@@ -412,6 +447,8 @@ if __name__ == "__main__":
         gradio_thread.start()
         logger.debug("Gradio interface started")
 
+        run_in_thread()
+
         # Set up signal handler for graceful shutdown
         def signal_handler(sig, frame):
             logger.info("Shutting down...")
@@ -420,6 +457,8 @@ if __name__ == "__main__":
             os._exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
+
+        register_summarization_routes(app, ampManager)
 
         app.run(debug=False, host="0.0.0.0", port=17173)
         # Run Flask app using Waitress
