@@ -6,8 +6,16 @@ import logging
 
 from amp.language_models.api_model import ApiModel
 from amp.language_models.prompt_formatter import PromptFormatter
+from amp.language_models.providers.llamacpp.formatters.aya import AyaFormatter
+from amp.language_models.providers.llamacpp.formatters.deepseek_r1 import (
+    DeepseekR1Formatter,
+)
+from amp.language_models.providers.llamacpp.formatters.gemma import GemmaFormatter
 from amp.language_models.providers.llamacpp.formatters.llama3 import Llama3Formatter
 from amp.language_models.providers.llamacpp.formatters.mistral import MistralFormatter
+from amp.language_models.providers.llamacpp.formatters.phi import PhiFormatter
+from amp.language_models.providers.llamacpp.formatters.glm import GLMFormatter
+from amp.language_models.providers.llamacpp.formatters.phi4 import Phi4Formatter
 from amp.language_models.providers.llamacpp.llamacpp_model import LlamaCppModel
 
 
@@ -95,23 +103,25 @@ class LlamaCppManager:
             )
 
             while True:
-                if self.popen.stdout:
+                if self.popen and self.popen.stdout:
                     try:
-                        line = self.popen.stdout.readline()
+                        line = self.popen.stdout.buffer.readline().decode(
+                            "utf-8", errors="ignore"
+                        )
                         print(line, end="")
 
                         if "all slots are idle" in line:
                             break
 
                     except Exception as e:
-                        print(e)
+                        print("EXCEPTION:", e)
                         break
 
                 else:
                     return
 
             # Close the stdout pipe after the while loop to allow normal process output
-            if self.popen.stdout:
+            if self.popen and self.popen.stdout:
                 self.popen.stdout.close()
 
             prompt_formatter = self.get_prompt_formatter(model_identifier)
@@ -121,6 +131,7 @@ class LlamaCppManager:
                     str(self.start_port),
                     prompt_formatter,
                     model_identifier,
+                    context_window_size,
                 )
             )
             logger.debug("Model loaded successfully")
@@ -152,10 +163,36 @@ class LlamaCppManager:
             return ""
 
     def get_prompt_formatter(self, model_path: str) -> PromptFormatter:
-        if "Llama-3" in model_path:
+        # Create an environment variable name based on the model_path
+        env_var_name = f"MODEL_FILE_{model_path.replace(' ', '_').replace('-', '_').replace('.', '_')}"
+        print("ENV VAR NAME:", env_var_name)
+
+        # Check if the environment variable exists
+        custom_formatter = os.getenv(env_var_name)
+        print("CUSTOM FORMATTER:", custom_formatter)
+
+        # If no custom formatter is found, use the existing logic
+        if custom_formatter == "LLAMA" or "llama-3" in model_path.lower():
             return Llama3Formatter()
-        elif "Mistral" in model_path:
+        elif (
+            custom_formatter == "MISTRAL"
+            or "mistral" in model_path.lower()
+            or "magnum" in model_path.lower()
+            or "ministral" in model_path.lower()
+        ):
             return MistralFormatter()
+        elif custom_formatter == "GEMMA" or "gemma" in model_path.lower():
+            return GemmaFormatter()
+        elif custom_formatter == "PHI" or "phi-3" in model_path.lower():
+            return PhiFormatter()
+        elif custom_formatter == "PHI-4" or "phi_4" in model_path.lower():
+            return Phi4Formatter()
+        elif custom_formatter == "GLM" or "glm" in model_path.lower():
+            return GLMFormatter()
+        elif custom_formatter == "AYA" or "aya" in model_path.lower():
+            return AyaFormatter()
+        elif custom_formatter == "DEEPSEEK-R1" or "deepseekr1" in model_path.lower():
+            return DeepseekR1Formatter()
         else:
             return PromptFormatter()
 
@@ -164,7 +201,10 @@ class LlamaCppManager:
     ) -> None:
         for model in self.active_models:
             if model.get_model_path() == model_path:
-                return
+                if model.context_window_size > context_window_size:
+                    return
+                else:
+                    print("RIGHT MODEL BUT TOO SMALL CONTEXT WINDOW")
 
         model_index = self.get_available_models().index(model_path)
 

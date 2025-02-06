@@ -3,7 +3,6 @@ from amp.language_models.prompt_formatter import PromptFormatter
 from amp.language_models.model_message import ModelMessage
 
 
-# This formatter seems to not be able to produce reliable results, probably due to <s> not expected to be an ordinary string token
 class MistralFormatter(PromptFormatter):
     def __init__(self):
         super().__init__("MISTRAL")
@@ -19,7 +18,6 @@ class MistralFormatter(PromptFormatter):
 
         system_message = ""
         system_message_latest = ""
-        print(messages)
 
         for i, message in enumerate(messages):
             if message.is_user_message():
@@ -39,7 +37,6 @@ class MistralFormatter(PromptFormatter):
         if system_message:
             prompt.append(self._user_message(None, system_message))
 
-        print(prompt)
         return prompt
 
     def _user_message(

@@ -3,14 +3,12 @@ from amp.language_models.model_message import ModelMessage
 from amp.language_models.prompt_formatter import PromptFormatter
 
 
-class Llama3Formatter(PromptFormatter):
+class PhiFormatter(PromptFormatter):
     def __init__(self):
-        super().__init__("LLAMA3")
+        super().__init__("PHI")
 
-    # returns a list containing ints and strings
     def generate_prompt(self, messages: Sequence[ModelMessage]) -> str:
-        prompt: str = ""  # Llama.cpp will inject the token below automatically
-        # prompt = "<|begin_of_text|>"
+        prompt: str = ""
 
         system_message = ""
 
@@ -27,8 +25,8 @@ class Llama3Formatter(PromptFormatter):
             elif message.is_assistant_message():
                 prompt += self._add_message(message.get_message(), "assistant")
 
-        prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n"
+        prompt += "<|assistant|><|end|>"
         return prompt
 
     def _add_message(self, message: str, role: str) -> str:
-        return f"<|start_header_id|>{role}<|end_header_id|>\n\n{message}<|eot_id|>"
+        return f"<|{role}|>\n{message}<|end|>\n"

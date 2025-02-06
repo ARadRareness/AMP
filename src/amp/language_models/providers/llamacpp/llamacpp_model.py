@@ -17,11 +17,28 @@ class LlamaCppModel(ApiModel):
         host_port: str,
         prompt_formatter: PromptFormatter,
         model_path: str,
+        context_window_size: int,
     ):
-        super().__init__(model_path, prompt_formatter)
+        super().__init__(model_path, prompt_formatter, context_window_size)
 
         self.host_url = host_url
         self.host_port = host_port
+
+    def generate_tokens(self, prompt):
+        if isinstance(prompt, str):
+            return prompt
+
+        new_prompt = []
+        for element in prompt:
+            if isinstance(element, str):
+                url = f"http://{self.host_url}:{self.host_port}/tokenize"
+                response = requests.post(url, json={"content": element})
+                if response.status_code == 200:
+                    tokens = response.json()["tokens"]
+                    new_prompt.extend(tokens)
+            else:
+                new_prompt.append(element)
+        return new_prompt
 
     def generate_text(
         self,
@@ -31,6 +48,8 @@ class LlamaCppModel(ApiModel):
         response_prefix: str = "",
     ) -> ModelResponse:
         prompt = self.prompt_formatter.generate_prompt(messages)
+
+        prompt = self.generate_tokens(prompt)
 
         if response_prefix:
             prompt += response_prefix

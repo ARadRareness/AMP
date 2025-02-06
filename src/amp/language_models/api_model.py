@@ -5,9 +5,15 @@ from amp.language_models.prompt_formatter import PromptFormatter
 
 
 class ApiModel:
-    def __init__(self, model_path: str, prompt_formatter: PromptFormatter):
+    def __init__(
+        self,
+        model_path: str,
+        prompt_formatter: PromptFormatter,
+        context_window_size: int,
+    ):
         self.model_path = model_path
         self.prompt_formatter = prompt_formatter
+        self.context_window_size = context_window_size
 
     def get_model_path(self) -> str:
         return self.model_path
