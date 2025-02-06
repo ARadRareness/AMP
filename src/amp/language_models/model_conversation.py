@@ -60,6 +60,7 @@ class ModelConversation:
         model: ApiModel,
         max_tokens: int,
         single_message_mode: bool,
+        temperature: float = 0.2,
         response_prefix: str = "",
     ) -> str:
         messages = self.get_messages(single_message_mode)
@@ -67,6 +68,7 @@ class ModelConversation:
         response = model.generate_text(
             messages,
             max_tokens,
+            temperature=temperature,
             response_prefix=response_prefix,
         )
 

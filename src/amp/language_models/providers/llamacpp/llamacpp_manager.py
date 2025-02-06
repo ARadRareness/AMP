@@ -43,7 +43,9 @@ class LlamaCppManager:
             if self.popen:
                 # Terminate the existing process
                 self.popen.terminate()
-                self.active_models.pop()
+                self.popen = None
+                if self.active_models:
+                    self.active_models.pop()
 
             available_models = self.get_available_models()
 
