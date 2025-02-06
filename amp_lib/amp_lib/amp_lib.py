@@ -69,6 +69,7 @@ class AmpClient:
         max_tokens: int = 2000,
         single_message_mode: bool = False,
         response_prefix: str = "",
+        model: str = "",
     ) -> str:
         data = {
             "conversation_id": conversation_id,
@@ -76,6 +77,7 @@ class AmpClient:
             "max_tokens": max_tokens,
             "single_message_mode": single_message_mode,
             "response_prefix": response_prefix,
+            "model": model,
         }
         return self._post("generate_response", data)
 
@@ -137,3 +139,6 @@ class AmpClient:
 
     def send_telegram_message(self, message: str) -> str:
         return self._post("telegram_message", {"message": message})
+
+    def unload_models(self):
+        return self._get("models/unload")
